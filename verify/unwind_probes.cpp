@@ -654,7 +654,15 @@ int probe_unwind_scale(Fmt fmt, const std::vector<std::string>& args) {
     else if (args[i] == "--inject-serialization") uwsc::g_serialize = true;
   }
   const unsigned cores = std::thread::hardware_concurrency();
-  if (cores && max_threads > static_cast<int>(cores)) max_threads = static_cast<int>(cores);
+  // The real measurement is clamped to the cores available, because asking how the escape
+  // scales is a question about parallelism and oversubscribing would measure the
+  // scheduler instead. The injected case is not a measurement: it has to demonstrate that
+  // this gate fails when the escape path serializes, and a lock contended by N threads
+  // inflates per-escape latency by about N. On a two-core runner that is a factor of two
+  // against a bound of two, so the defect sat exactly on the boundary and the gate
+  // reported it as acceptable. The injected case therefore contends deliberately.
+  if (!uwsc::g_serialize && cores && max_threads > static_cast<int>(cores))
+    max_threads = static_cast<int>(cores);
   if (max_threads < 2) max_threads = 2;
 
   Report r(fmt, "unwind-scale");
