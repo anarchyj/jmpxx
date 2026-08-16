@@ -21,7 +21,16 @@ report what it did. The codegen and size commands compile a fixture and inspect 
   each type's size, alignment, field offsets, and trait bits, and diffs the layout against a
   committed golden, so an unversioned layout change fails the build. See [abi.md](abi.md).
 - `unwind` drives the experimental arm and reports its destructor count and sad-path distribution,
-  detailed in [unwind.md](unwind.md).
+  detailed in [unwind.md](unwind.md). `unwind-matrix` runs each case of the arm's per-runtime
+  behaviour matrix as its own process, because a case whose declared outcome is a termination kills
+  the process that runs it, and reports what the C++ runtime in this build did with a handler or a
+  barrier on the escape path. It also reports how many cases it asked against how many it knows,
+  and fails on a mismatch, because a probe that quietly asks fewer questions still passes every
+  question it asked. `unwind-stress` runs a long randomized campaign of escapes across
+  threads and reports destructor balance, payload identity, and leaked landing state.
+  `unwind-scale` reports per-escape latency as threads are added, against a C++ throw measured in
+  the same loop, so the answer is how the arm scales relative to the platform's own unwinder rather
+  than an absolute number that would not travel between machines.
 - `codegen` compiles a fixture at `-O2` for a target, slices one function's assembly, and diffs it
   against a committed golden, reporting instruction count and stack-spill presence. `release-diff`
   compiles the same operation under the minimal and the rich policy in a release configuration and
@@ -73,6 +82,13 @@ checked against a known-bad input so it cannot pass silently.
 | compile cost | `compile-cost` | instantiation count within budget | an instantiation-heavy fixture |
 | perf | `bench gate` and the callgrind script | jmpxx within a multiple of the baseline | a deliberately slowed kernel |
 | unwind determinism | `unwind` | sad-path tail within a multiple of a throw's | an injected non-deterministic cleanup |
+| unwind runtime matrix | `unwind-matrix` | every case lands or terminates within its safe set, and the fixture lists as many cases as the matrix expects | a case that fabricates a success, and a fixture that lists fewer cases |
+| unwind stress | `unwind-stress` | no payload mismatch, cleanup imbalance, or leaked landing state | an injected skipped destructor |
+| unwind scaling | `unwind-scale` | escape latency inflates with threads within a multiple of a throw's | serialization injected into the escape path |
+| unwind link-time optimization | `unwind.lto` CTest tier | destructors balance under link-time and whole-program optimization | an arm whose escape a caller can prove cannot unwind |
+| unwind metadata | `unwind.metadata` CTest tier | the escape path's frames carry cleanup landing pads in the emitted tables | the same chain built against the regressed arm |
+| unwind concurrency | `unwind.concurrent` CTest tier | many threads escape independently with no race or wrong landing | a shared rather than per-thread landing stack |
+| unwind reentrancy | `unwind.reentrancy` CTest tier | each misdirected escape lands or terminates as declared | the refusing cases made to return success |
 | abi layout | `abi-layout` | frozen type layout matches the committed golden | a golden claiming a changed layout |
 | doc claim | `doc_claim` script | a documented cost matches the harness | a doc stating a cost the harness does not report |
 | adversarial fuzz | `adversarial.fuzz.*` CTest tiers | portable surface has no crash or sanitizer finding under structured, libFuzzer, and AFL input | injected crash seeds for each fuzz path |

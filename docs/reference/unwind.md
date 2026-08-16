@@ -28,15 +28,16 @@ current thread, carrying `err`. The error type must match the receiving scope an
 small and trivially copyable, which every error representation the library ships
 satisfies; richer context travels out of band, as the resolver in the reference
 application does by stashing the offending key before it ejects. `eject` does not return
-at run time, but it is deliberately not `[[noreturn]]`, because that attribute would let
-the optimizer prove the eject site neither returns nor throws and elide the cleanup
-landing pads the forced unwind depends on. It returns a type convertible to anything, so
-`return jmpxx::unwind::eject(err);` type-checks in a function of any return type; a
-helper that wraps `eject` returns normally and is not itself `noreturn`.
+at run time, but it is deliberately not `[[noreturn]]`: it returns a type convertible to
+anything, so `return jmpxx::unwind::eject(err);` type-checks in a function of any return
+type. A helper that wraps `eject` returns normally, and must not be declared in a way that
+lets its caller prove it cannot unwind, which the caveats below state in full.
 
 `jmpxx::unwind::available()` is a `constexpr bool` that is false on a target with no
 backend, where `escape_scope` and `eject` refuse instantiation with a stated
-precondition. A program can branch on it to fall back to the portable surface.
+precondition. Branch on it with `if constexpr`, or guard the including translation unit
+with `JMPXX_UNWIND_AVAILABLE`, to fall back to the portable surface; a runtime `if` does
+not prevent the instantiation.
 
 ## The unwind-tables precondition
 
@@ -48,6 +49,36 @@ unit that opts in; every frame on the escape path must likewise be compiled with
 tables, a runtime precondition the header cannot check. A frame compiled `-fno-exceptions`
 on the escape path has its destructors skipped, which is the undefined-RAII outcome the
 arm exists to avoid, so the path must be built with tables throughout.
+
+## Escaping while an escape is unwinding
+
+An escape that starts while another is already unwinding on the same thread is refused: the
+arm terminates with a diagnostic rather than starting it. That covers both shapes, an
+`eject` aimed at the scope whose escape is in flight and an `eject` from a fresh
+`escape_scope` a destructor opened as it ran as cleanup.
+
+The refusal is uniform rather than permitted where it happens to work. With each landing
+scope owning its own unwind object the second escape completes on the Itanium and DWARF
+ABIs, but it terminates on the ARM exception-handling ABI and it is a throw during
+unwinding on WebAssembly, which the language terminates. One contract that holds
+everywhere is worth more than a capability that aborts on some targets.
+
+A destructor running as cleanup may still open an `escape_scope` and use it, as long as
+nothing escapes from that scope while the outer escape is in flight.
+
+Four other ways an `eject` can be misdirected are refused the same way, each with its own
+diagnostic: no scope on this thread, an error type the active scope does not receive, a
+scope that has already returned, and a scope belonging to another thread.
+
+## Threads
+
+Landing scopes are per thread. Each thread has its own stack of active scopes and its own
+in-flight state, so threads escape independently and an escape never reaches a landing on
+another thread. Nothing is shared between them and no lock is taken.
+
+Escaping is as parallel as the platform's unwinder and no more. The arm and a C++ throw
+walk the same machinery, so as threads are added their per-escape latency rises together;
+the `jmpxx-verify unwind-scale` command measures both and reports the ratio.
 
 ## Caveats
 
@@ -62,7 +93,16 @@ wrong landing. Keep a catch-all off the escape path, or use a typed catch.
 
 A frame on the escape path marked `noexcept` terminates the unwind at that frame, because
 an empty exception specification is a barrier the forced unwind cannot cross. Functions on
-the path between an eject and its landing must not be `noexcept`.
+the path between an eject and its landing must not be `noexcept`. A function that holds the
+landing may be `noexcept`, because the unwind stops there and never crosses it.
+
+A helper that wraps `eject` must not be declared in a way that lets a caller prove it
+neither returns nor unwinds. That proof is what lets the optimizer delete the caller's
+cleanup landing pads, and the escape then runs no destructors at all from `-O1` upward. The
+`[[noreturn]]` attribute alone does not reach this on the compilers in the support matrix,
+which keep the pads while the call may still unwind; a `noexcept` or nothrow declaration
+does, because it removes the unwinding edge outright. Leave a wrapper ordinary, as
+`jmpxx::unwind::eject` itself is.
 
 The sad path costs an unwinder walk and is not for the hottest escape path. The
 `jmpxx-verify unwind` command measures the forced-unwind escape distribution beside a C++
@@ -97,11 +137,29 @@ non-cooperative catch-all that swallows it is caught by the termination backstop
 than by the platform unwinder. The sad path is whatever the WebAssembly engine charges for a throw
 rather than a library-bounded walk.
 
-On Windows the arm is reached two ways. A MinGW toolchain exposes the libgcc
-`_Unwind_ForcedUnwind` interface and uses the same backend as the forced-unwind ABIs.
-Native MSVC drives the cleanup through an unwinding `longjmp`, which under the C++
-exception model performs a termination unwind that runs the destructors of the frames it
-passes. The unwind-execution tier runs on MSVC and the catch-all transit holds.
+On Windows the arm runs under native MSVC, which drives the cleanup through an unwinding
+`longjmp`. Under the C++ exception model that performs a termination unwind and runs the
+destructors of the frames it passes. The unwind-execution tier runs on MSVC and the
+catch-all transit holds.
+
+A GCC or Clang toolchain targeting Windows with structured exception handling, which is
+what MinGW-w64 uses on x86-64, has no backend: `available()` is false there and use is a
+compile-time refusal. Such a toolchain declares `_Unwind_ForcedUnwind`, so the arm would
+link, but libgcc's structured-exception unwinder does not implement it. The call returns
+end-of-stack immediately without invoking the stop function or running any cleanup, while
+an ordinary throw on the same toolchain unwinds correctly. An arm that links and then
+cannot escape is worse than one that refuses.
+
+Link-time optimization does not change the guarantee on the Itanium and DWARF ABIs. A
+depth-eight escape across translation units runs every destructor exactly once under
+`-flto` at each optimization level, with static linking, with section garbage collection,
+and under thin and whole-program modes.
+
+On the ARM exception-handling ABI, link-time optimization is unsupported. The compiler
+emits a direct unwinder resume in the cleanup landing pad rather than the ABI's own cleanup
+exit, and a forced unwind then terminates as the second frame's cleanup finishes; an
+ordinary throw survives it. No preprocessor macro identifies the option, so the header
+cannot refuse the configuration. Build that ABI without link-time optimization.
 
 On a bare-metal ARM target the arm runs on a freestanding Cortex-M3 with no operating
 system, built against newlib and run under a system-mode emulator, where a depth-eight
