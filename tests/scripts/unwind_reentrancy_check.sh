@@ -6,12 +6,19 @@
 # that lands where it must terminate is the failure this tier exists to catch, because
 # that is the shape a silent wrong landing takes.
 #
-# Usage: unwind_reentrancy_check.sh <fixture> [clean|inject]
+# Usage: unwind_reentrancy_check.sh <fixture> [clean|inject] [runner]
 # inject passes --fake-success to the fixture, which makes every refusing case return
-# success instead, and the driver must then fail.
+# success instead, and the driver must then fail. runner prefixes each invocation, so a
+# cross-architecture cell passes its emulator here and gets the same expectations and the
+# same teeth as the native cell rather than a loop of its own.
+#
+# Note for a caller: this script deliberately does not set -e. Most cases here are
+# expected to die by a signal, so under -e the first correct refusal would end the script
+# before its outcome was read. A caller that runs it from a shell with -e is unaffected,
+# because the failure is reported through the exit status below.
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/crash_hygiene.sh"
-FIXTURE="${1:?reentrancy fixture}"; MODE="${2:-clean}"
+FIXTURE="${1:?reentrancy fixture}"; MODE="${2:-clean}"; RUNNER="${3:-}"
 
 extra=()
 [[ "$MODE" == "inject" ]] && extra=(--fake-success)
@@ -31,7 +38,7 @@ failures=0
 for spec in "${expectations[@]}"; do
   set -- $spec
   name="$1"; want="$2"
-  out="$("$FIXTURE" "$name" "${extra[@]}" 2>&1)"
+  out="$(${RUNNER:+$RUNNER} "$FIXTURE" "$name" ${extra[@]+"${extra[@]}"} 2>&1)"
   rc=$?
   if [[ "$rc" -ge 128 ]]; then got="terminate"; elif [[ "$rc" -eq 0 ]]; then got="land"; else got="fail"; fi
   printf '  %-32s want=%-9s got=%-9s (exit %d)\n' "$name" "$want" "$got" "$rc"

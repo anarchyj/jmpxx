@@ -70,7 +70,8 @@ link_flags=()
 
 build_and_run() {  # label, exe, flags...
   local label="$1"; local exe="$2"; shift 2
-  if ! "$CXX" -std=c++20 "$@" "${link_flags[@]}" "${defect_flags[@]}" \
+  if ! "$CXX" -std=c++20 "$@" ${link_flags[@]+"${link_flags[@]}"} \
+        ${defect_flags[@]+"${defect_flags[@]}"} \
         -I "$INC" -I "$TESTS/unwind" \
         "$TESTS/unwind/lto_frames.cpp" "$TESTS/unwind/lto_landing.cpp" \
         -o "$exe" 2> "$work/$label.build.log"; then
