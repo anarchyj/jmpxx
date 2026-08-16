@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Conan 2.x recipe for jmpxx. A consumer uses it without waiting for ConanCenter:
-# `conan create .` from the repo root, then depend on `jmpxx/0.1.2` and link the
+# `conan create .` from the repo root, then depend on `jmpxx/0.1.3` and link the
 # `jmpxx::jmpxx` CMake target.
 #
 # jmpxx is header-only, so the package copies the headers and the license, declares no
@@ -15,7 +15,7 @@ from conan.tools.files import copy
 
 class JmpxxConan(ConanFile):
     name = "jmpxx"
-    version = "0.1.2"
+    version = "0.1.3"
     license = "MIT"
     homepage = "https://github.com/DimitryQm/jmpxx"
     description = "Non-local, RAII-correct, exception-free failure propagation for C++20."

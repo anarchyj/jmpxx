@@ -8,6 +8,47 @@ is recorded here with its migration impact.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-16
+
+### Changed
+- The experimental unwind arm refuses a second escape while one is unwinding on the
+  same thread, with a diagnostic, whether it targets the scope already unwinding or a
+  fresh scope a destructor opened. The refusal is uniform across the supported ABIs:
+  with each landing owning its own unwind object the second escape completes on the
+  Itanium and DWARF ABIs, but it terminates on the ARM exception-handling ABI and is a
+  throw during unwinding on WebAssembly. One contract everywhere is worth more than a
+  capability that aborts on some targets.
+- The unwind arm has no backend when a GCC or Clang toolchain targets Windows
+  structured exception handling, which is what MinGW-w64 uses on x86-64.
+  `jmpxx::unwind::available()` is false there and use is a compile-time refusal.
+  That toolchain declares `_Unwind_ForcedUnwind` but does not implement it: the call
+  returns end-of-stack without invoking the stop function or running any cleanup.
+- The unwind arm no longer includes `<cstring>` or `<array>`, taking its two byte
+  operations from compiler builtins instead, so it compiles where the C library does
+  not provide the whole of `<string.h>`. An OP-TEE trusted application is such an
+  environment.
+
+### Fixed
+- `result`'s monadic operations used `U` as a type alias in a call-shaped position.
+  The Trusted Firmware and OP-TEE header convention defines `U(v)` as a function-like
+  macro, so a consumer in those ecosystems could not include jmpxx after their own
+  headers. The alias is now named `chained`, which changes no public name, and a test
+  tier compiles the public surface with those macros already defined so the collision
+  cannot return.
+- A cleanup running during an escape that opened its own landing scope and escaped
+  inside it corrupted the outer unwind, because both escapes shared one per-thread
+  unwind object. Each landing scope now owns its own, at no allocation cost. The
+  second escape is refused as described above, so the corruption is unreachable from
+  the public surface.
+- The documented reason the unwind arm declines `[[noreturn]]` on `eject` was wrong
+  and had been since the arm was introduced. What deletes the cleanup landing pads the
+  forced unwind depends on is a proof at the call site that the call cannot unwind;
+  `[[noreturn]]` alone does not reach that on any compiler in the support matrix, which
+  keep the pads while the call may still unwind. The reference page stated both the
+  wrong reason and the measured one in different sections. The obligation on a consumer
+  is unchanged and is the one the caveats already state: a helper that wraps `eject`
+  must not be declared in a way that lets its caller prove it cannot unwind.
+
 ## [0.1.2] - 2026-06-25
 
 ### Added
@@ -117,7 +158,8 @@ explicitly opt-in.
   macros for consumer version checks.
 - SPDX license tags on source files and the MIT license text in `LICENSE`.
 
-[Unreleased]: https://github.com/DimitryQm/jmpxx/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/DimitryQm/jmpxx/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/DimitryQm/jmpxx/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/DimitryQm/jmpxx/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DimitryQm/jmpxx/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DimitryQm/jmpxx/releases/tag/v0.1.0
