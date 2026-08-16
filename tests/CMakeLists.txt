@@ -41,6 +41,9 @@ find_program(JMPXX_LLVM_COV NAMES ${JMPXX_LLVM_COV_NAMES})
 find_program(JMPXX_PYTHON3 python3)
 set(JMPXX_MSAN_LIBCXX_ROOT "" CACHE PATH
   "Root of an MSan-instrumented libc++ install used by the memory-sanitizer gate")
+# The concurrent unwind tier runs real threads; the library itself needs no thread
+# support and this dependency stays inside the test tiers.
+find_package(Threads REQUIRED)
 
 # Compile-and-run tiers: static and constexpr assert at translation time (a
 # failed assertion fails the build), the property tier exercises randomized
@@ -566,81 +569,11 @@ if(UNIX)
   set_tests_properties(doc_claim.teeth PROPERTIES WILL_FAIL TRUE)
 endif()
 
-# Unwind-execution tier for the experimental non-local unwind arm. It is built at several
-# optimization levels because a forced unwind that
-# elides a cleanup landing pad or lands at the wrong frame is exposed only under
-# optimization; an -O0-only run would pass a regressed arm that silently skips
-# destructors at -O2. The arm requires exception cleanup tables, which are the default,
-# so the tier is not built under the no-exceptions configuration. The MSVC structured-
-# exception backend is exercised in a separate step below, so the tier is built on GCC
-# and Clang, which also cover MinGW.
-if(NOT MSVC)
-  foreach(opt 0 2 3)
-    add_executable(jmpxx_unwind_exec_O${opt} unwind/unwind_exec.cpp)
-    target_link_libraries(jmpxx_unwind_exec_O${opt} PRIVATE jmpxx::jmpxx)
-    target_compile_options(jmpxx_unwind_exec_O${opt} PRIVATE -O${opt} ${JMPXX_TEST_WARNINGS})
-    add_test(NAME unwind.exec.O${opt} COMMAND jmpxx_unwind_exec_O${opt})
-  endforeach()
+# The experimental unwind arm's tiers live beside the arm's fixtures. They are the
+# largest single group here and the only one whose subject is platform machinery rather
+# than the portable surface, so they are registered from their own file.
+add_subdirectory(unwind)
 
-  # A swallowing catch-all on the escape path is never a silent wrong landing. A
-  # non-cooperative catch(...) that does not rethrow is handled differently by different
-  # C++ runtimes: libstdc++ and libc++abi let it consume the escape, which the arm turns
-  # into a defined termination, while libcxxrt transits it so the escape reaches its
-  # landing. The wrapper passes on either safe outcome, a fail-fast signal or a clean
-  # exit, and fails only if the escape is silently lost. Built at -O2.
-  add_executable(jmpxx_unwind_swallow unwind/swallow.cpp)
-  target_link_libraries(jmpxx_unwind_swallow PRIVATE jmpxx::jmpxx)
-  target_compile_options(jmpxx_unwind_swallow PRIVATE -O2 ${JMPXX_TEST_WARNINGS})
-  add_test(NAME unwind.swallow_handled COMMAND bash
-    ${CMAKE_SOURCE_DIR}/tests/scripts/expect_swallow_handled.sh
-    $<TARGET_FILE:jmpxx_unwind_swallow>)
-endif()
-
-# Compile-fail: the arm refuses a configuration without unwind cleanup tables. Including
-# jmpxx/unwind.hpp under -fno-exceptions is a compile-time refusal, and the matching
-# correct use under exceptions compiles.
-if(NOT MSVC)
-  add_test(NAME unwind.compile_fail_no_tables COMMAND ${CMAKE_COMMAND}
-    -DCXX=${CMAKE_CXX_COMPILER} -DSTD=c++20 -DINC=${CMAKE_SOURCE_DIR}/include
-    -DSRC=${CMAKE_SOURCE_DIR}/tests/unwind/no_tables.cpp -DEXPECT=fail
-    -DFLAGS=-fno-exceptions
-    -P ${CMAKE_SOURCE_DIR}/cmake/compile_check.cmake)
-  add_test(NAME unwind.compile_ok_with_tables COMMAND ${CMAKE_COMMAND}
-    -DCXX=${CMAKE_CXX_COMPILER} -DSTD=c++20 -DINC=${CMAKE_SOURCE_DIR}/include
-    -DSRC=${CMAKE_SOURCE_DIR}/tests/unwind/no_tables.cpp -DEXPECT=succeed
-    -P ${CMAKE_SOURCE_DIR}/cmake/compile_check.cmake)
-endif()
-
-# Opt-in scan: no portable public header reaches the arm, so a consumer that never
-# includes jmpxx/unwind.hpp never compiles it. The scan checks that the arm is off every
-# default path. Pure text scan, so it runs anywhere bash does.
-if(UNIX)
-  add_test(NAME unwind.opt_in_scan COMMAND bash
-    ${CMAKE_SOURCE_DIR}/tests/scripts/unwind_opt_in_check.sh
-    ${CMAKE_SOURCE_DIR}/include/jmpxx)
-endif()
-
-# Unwind sad-path benchmark and the destructor-count surface, driven through the harness.
-# The committed run asserts the forced-unwind sad path stays within its determinism bound
-# and reports the distribution beside a C++ throw at
-# the same depth. The inverted run injects a non-deterministic cleanup, which drives the
-# ratio past the bound and must fail the same gate's negative path.
-add_test(NAME unwind.benchmark COMMAND jmpxx-verify unwind --iters 40000)
-add_test(NAME unwind.benchmark.teeth COMMAND jmpxx-verify unwind --inject-jitter --iters 20000)
-set_tests_properties(unwind.benchmark.teeth PROPERTIES WILL_FAIL TRUE TIMEOUT 180)
-
-# Payload-boundary fuzz: any value an eject carries, including one derived from
-# adversarial input, must cross to the landing as a defined failure rather than
-# undefined behavior. libFuzzer drives the eject and landing under the address and
-# undefined-behavior sanitizers, so any UB on any input is a crash. libFuzzer is a Clang
-# facility on Linux.
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND JMPXX_CLANGXX)
-  add_test(NAME unwind.fuzz COMMAND bash
-    ${CMAKE_SOURCE_DIR}/tests/scripts/fuzz_check.sh
-    ${JMPXX_CLANGXX} ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}
-    ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_unwind.cpp 15)
-  set_tests_properties(unwind.fuzz PROPERTIES TIMEOUT 120)
-endif()
 
 # The compile-and-measure probes each drive a fixture through a fixed temporary file,
 # so two of them running at once would race on it. A shared resource lock serializes
