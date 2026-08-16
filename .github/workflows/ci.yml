@@ -103,6 +103,22 @@ jobs:
       - name: run adversarial gates
         run: ctest --test-dir build --output-on-failure -R 'adversarial|hardening|config_matrix|msan|static_analysis|mutation|model'
 
+  unwind-arm-depth:
+    name: unwind arm depth gates
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo rm -f /etc/apt/sources.list.d/microsoft* /etc/apt/sources.list.d/azure*; sudo apt-get update && sudo apt-get install -y ninja-build clang-18
+      # The arm's own tiers: link-time optimization, the emitted unwind metadata,
+      # concurrency under the thread sanitizer, the reentrancy contract, the per-runtime
+      # behaviour matrix, the long-run stress campaign, and thread scaling. Each has an
+      # inverted case that must fail, so the job proves the gates rather than the arm alone.
+      - name: configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF
+      - run: cmake --build build
+      - name: run the unwind tiers
+        run: ctest --test-dir build --output-on-failure -R 'unwind'
+
   cross-arch:
     name: cross ${{ matrix.arch }} via qemu
     runs-on: ubuntu-24.04
@@ -128,6 +144,33 @@ jobs:
         run: |
           ${{ matrix.cxx }} -std=c++20 -O2 -static -Iinclude tests/unwind/unwind_exec.cpp -o uexec
           ${{ matrix.qemu }} ./uexec
+      - name: the arm's per-runtime behaviour on this architecture
+        # Each case runs as its own process, because a case whose declared outcome is a
+        # termination kills the process that runs it. Every architecture must produce the
+        # same rows; a divergence is contract material, not a flake.
+        run: |
+          ${{ matrix.cxx }} -std=c++20 -O2 -static -Iinclude tests/unwind/runtime_matrix.cpp -o rtm
+          ulimit -c 0
+          for c in $(${{ matrix.qemu }} ./rtm --list); do
+            out=$(${{ matrix.qemu }} ./rtm --case "$c" 2>&1 || true)
+            tok=$(printf '%s' "$out" | sed -n 's/.*outcome=\([a-z_]*\).*/\1/p' | tail -1)
+            printf '  %-30s %s\n' "$c" "${tok:-terminated}"
+          done
+      - name: concurrent and reentrant escapes under emulation
+        run: |
+          ${{ matrix.cxx }} -std=c++20 -O2 -static -pthread -Iinclude -Itests/unwind tests/unwind/concurrent.cpp -o conc
+          ${{ matrix.qemu }} ./conc --threads 4 --iterations 200
+          ${{ matrix.cxx }} -std=c++20 -O2 -static -pthread -Iinclude tests/unwind/reentrancy.cpp -o reent
+          ulimit -c 0
+          for c in $(${{ matrix.qemu }} ./reent --list); do
+            ${{ matrix.qemu }} ./reent "$c" >/dev/null 2>&1; rc=$?
+            if [ $rc -ge 128 ]; then got=terminate; elif [ $rc -eq 0 ]; then got=land; else got="fail($rc)"; fi
+            printf '  %-32s %s\n' "$c" "$got"
+          done
+      - name: destructor balance under link-time optimization
+        # The ARM exception-handling ABI cell checks its recorded limitation instead: the
+        # ordinary build must work and the link-time-optimized build must be refused.
+        run: bash tests/scripts/unwind_lto_check.sh ${{ matrix.cxx }} include tests "$PWD/build-lto" clean ${{ matrix.qemu }}
 
   wasm:
     name: wasm emscripten + node
@@ -190,6 +233,31 @@ jobs:
       - name: build and run the experimental unwind arm on MSVC
         shell: cmd
         run: cl /std:c++latest /EHsc /O2 /nologo /I include tests\unwind\unwind_exec.cpp /Fe:uexec.exe && uexec.exe
+
+  embedded-field-use:
+    name: bare-metal field use
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo rm -f /etc/apt/sources.list.d/microsoft* /etc/apt/sources.list.d/azure*
+          sudo apt-get update
+          sudo apt-get install -y ninja-build gcc-arm-none-eabi qemu-system-arm
+      # The field-use firmware consumes jmpxx through an install prefix, the same channel a
+      # consumer uses, and pulls littlefs at configure time. It boots on an emulated
+      # Cortex-M3 with no operating system, which is where the arm's unwind-table
+      # requirement and its bare-metal thread-local dependency are real rather than stated.
+      - name: install jmpxx
+        run: |
+          cmake -S . -B build/install -G Ninja -DJMPXX_BUILD_TESTS=OFF -DJMPXX_BUILD_VERIFY=OFF -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF -DJMPXX_BUILD_EXAMPLES=OFF
+          cmake --install build/install --prefix "$HOME/jmpxx-prefix"
+      - name: build and boot the firmware
+        run: |
+          cmake -S reference_app/embedded -B build/storecheck -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/reference_app/embedded/board/arm-none-eabi.cmake" \
+            -DCMAKE_PREFIX_PATH="$HOME/jmpxx-prefix"
+          cmake --build build/storecheck
+          ctest --test-dir build/storecheck --output-on-failure
 
   packaging:
     name: packaging channel and reference application
