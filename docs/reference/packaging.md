@@ -33,7 +33,7 @@ installed copy first, from one call:
 ```cmake
 include(FetchContent)
 FetchContent_Declare(jmpxx
-  GIT_REPOSITORY https://github.com/DimitryQm/jmpxx.git
+  GIT_REPOSITORY https://github.com/anarchyj/jmpxx.git
   GIT_TAG v0.1.3
   FIND_PACKAGE_ARGS NAMES jmpxx)
 FetchContent_MakeAvailable(jmpxx)
@@ -48,7 +48,7 @@ not inherit them.
 ## CPM.cmake
 
 ```cmake
-CPMAddPackage("gh:DimitryQm/jmpxx@0.1.3")
+CPMAddPackage("gh:anarchyj/jmpxx@0.1.3")
 target_link_libraries(app PRIVATE jmpxx::jmpxx)
 ```
 

@@ -17,7 +17,7 @@ class JmpxxConan(ConanFile):
     name = "jmpxx"
     version = "0.1.3"
     license = "MIT"
-    homepage = "https://github.com/DimitryQm/jmpxx"
+    homepage = "https://github.com/anarchyj/jmpxx"
     description = "Non-local, RAII-correct, exception-free failure propagation for C++20."
     topics = ("error-handling", "result", "no-exceptions", "header-only", "embedded")
     package_type = "header-library"

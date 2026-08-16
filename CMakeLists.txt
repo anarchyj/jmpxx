@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(jmpxx
   VERSION 0.1.3
   DESCRIPTION "Non-local, RAII-correct, exception-free failure propagation for C++"
-  HOMEPAGE_URL "https://github.com/DimitryQm/jmpxx"
+  HOMEPAGE_URL "https://github.com/anarchyj/jmpxx"
   LANGUAGES CXX)
 
 # Top-level detection without requiring CMake 3.21 (PROJECT_IS_TOP_LEVEL).
