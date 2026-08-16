@@ -49,12 +49,28 @@ fi
 
 # Each configuration is a label followed by the flags that distinguish it. Thin
 # link-time optimization is a Clang mode; whole-program is the GCC counterpart.
+# Apple's linker is not GNU ld. It has no --gc-sections, spelling the same idea
+# -dead_strip, and it cannot produce a fully static executable at all, because the
+# platform ships no crt0.o and static libSystem is unsupported. Both of those are
+# properties of the platform rather than of the arm, so a build failure there would
+# report a destructor imbalance that never happened. The equivalent configuration is
+# substituted where one exists, and the one with no equivalent is named below rather
+# than dropped quietly.
+is_darwin=0
+[[ "$(uname -s 2>/dev/null)" == "Darwin" ]] && is_darwin=1
+
+skipped=()
 configs=(
   "lto_O2|-O2|-flto"
   "lto_O3|-O3|-flto"
-  "lto_static|-O2|-flto|-static"
-  "lto_gc_sections|-O2|-flto|-ffunction-sections|-fdata-sections|-Wl,--gc-sections"
 )
+if [[ "$is_darwin" -eq 1 ]]; then
+  skipped+=("lto_static: this platform cannot link a fully static executable")
+  configs+=("lto_dead_strip|-O2|-flto|-ffunction-sections|-fdata-sections|-Wl,-dead_strip")
+else
+  configs+=("lto_static|-O2|-flto|-static")
+  configs+=("lto_gc_sections|-O2|-flto|-ffunction-sections|-fdata-sections|-Wl,--gc-sections")
+fi
 if [[ "$is_clang" -eq 1 ]]; then
   configs+=("thinlto_O2|-O2|-flto=thin")
 else
@@ -135,8 +151,12 @@ for spec in "${configs[@]}"; do
   fi
 done
 
+if [[ "${#skipped[@]}" -ne 0 ]]; then
+  for s in "${skipped[@]}"; do echo "$s: UNAVAILABLE ON THIS PLATFORM" | tee -a "$report"; done
+fi
+
 if [[ "$failures" -ne 0 ]]; then
   echo "unwind link-time optimization: $failures configuration(s) did not keep the arm's destructor balance"
   exit 1
 fi
-echo "unwind link-time optimization: every configuration ran each destructor exactly once"
+echo "unwind link-time optimization: ${#configs[@]} configuration(s) ran each destructor exactly once, ${#skipped[@]} unavailable on this platform"
