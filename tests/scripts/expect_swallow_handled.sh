@@ -8,6 +8,7 @@
 # produced, which the fixture reports with a small non-zero exit code. Pass on a clean
 # exit or a signal, fail on a plain non-zero exit.
 set -uo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/crash_hygiene.sh"
 "$@"
 rc=$?
 if [ "$rc" -eq 0 ] || [ "$rc" -ge 128 ]; then

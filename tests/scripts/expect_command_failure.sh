@@ -4,6 +4,7 @@
 # observed failure into an ordinary nonzero exit for CTest WILL_FAIL.
 set -euo pipefail
 set +e
+source "$(dirname "${BASH_SOURCE[0]}")/crash_hygiene.sh"
 "$@"
 rc=$?
 set -e

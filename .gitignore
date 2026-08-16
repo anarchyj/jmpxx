@@ -39,3 +39,7 @@ compile_commands.json
 
 # conan/cmake generated user presets
 CMakeUserPresets.json
+
+# Python bytecode from the verification scripts
+__pycache__/
+*.pyc

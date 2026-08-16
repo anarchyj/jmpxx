@@ -11,5 +11,8 @@ SRC="${4:?source}"; SECS="${5:-15}"
 bin="$OUT/$(basename "$SRC").fuzz"
 "$CXX" -std=c++23 -O1 -g -fsanitize=fuzzer,address,undefined \
   -fno-omit-frame-pointer -fno-sanitize-recover=all -I "$INC" "$SRC" -o "$bin"
-"$bin" -max_total_time="$SECS" -error_exitcode=99 -timeout=10 -rss_limit_mb=2048
+# A crashing input is written under the output directory rather than the current one,
+# which is the repository root when the suite runs from there.
+"$bin" -max_total_time="$SECS" -error_exitcode=99 -artifact_prefix="$OUT/" \
+  -timeout=10 -rss_limit_mb=2048
 echo "fuzz clean: no crash or sanitizer finding in ${SECS}s over the interop boundary"

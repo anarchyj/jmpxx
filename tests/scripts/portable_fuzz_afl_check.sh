@@ -4,6 +4,7 @@
 # afl-fuzz for a small deterministic budget. A crashing injected seed fails during
 # AFL's dry run, which is the gate's inverted self-test.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/crash_hygiene.sh"
 AFL_CXX="${1:?afl compiler}"; INC="${2:?include dir}"; OUT="${3:?output dir}"
 SRC="${4:?source}"; SECS="${5:-6}"; MODE="${6:-clean}"
 work="$OUT/portable_afl_${MODE}"

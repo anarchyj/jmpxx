@@ -8,6 +8,7 @@ CXX="${1:?compiler}"; INC="${2:?include dir}"; OUT="${3:?output dir}"
 SRC_FAST="${4:?wrong-state source}"; SRC_EXT="${5:?erased-null source}"
 MODE="${6:-clean}"
 work="$OUT/hardening_${MODE}"
+source "$(dirname "${BASH_SOURCE[0]}")/crash_hygiene.sh"
 mkdir -p "$work"
 
 compile_asm() {
