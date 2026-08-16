@@ -8,9 +8,9 @@
 # in vcpkg.json. vcpkg also prints the expected value on a mismatched install attempt.
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
-    REPO DimitryQm/jmpxx
+    REPO anarchyj/jmpxx
     REF "v${VERSION}"
-    SHA512 ed2a3f4db867d8657e7cc30566da6d86a0afa4ac298f5c761847f483180349ab6c7008a5686dce429da1eed91552fe06569c6e3edc8c0861e4b5ef2e692749e6
+    SHA512 65ffbcaf46bce1450444aa2fa60a0a3c233a3d6263b59b870a8f3929affbbf8f56ead3c55f0625f442658ef0204e664e5250d6d3fd1db30eea3bab8647fb825a
     HEAD_REF main
 )
 
