@@ -21,11 +21,13 @@
 #include "jmpxx/interop/exception.hpp"
 #include "jmpxx/interop/expected.hpp"
 #include "jmpxx/platform.hpp"
-#include "jmpxx/unwind.hpp"
 #include "reporter.hpp"
+#include "support.hpp"
+#include "unwind_probes.hpp"
 
 #include <algorithm>
 #include <chrono>
+#include <mutex>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -34,13 +36,16 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 using namespace jmpxx;
 using jv::Fmt;
+using jv::read_file;
 using jv::Report;
+using jv::trim;
 
 // Allocation counting. The global operator new is replaced so a probe can check that
 // a path performs no heap allocation. Counting is off except inside the measured
@@ -410,18 +415,6 @@ int probe_diagnostics(Fmt fmt) {
 
 // codegen: compile a fixture with a pinned compiler, slice and normalize the
 // target function's assembly, and compare it to a committed golden.
-std::string trim(const std::string& s) {
-  std::size_t a = s.find_first_not_of(" \t");
-  if (a == std::string::npos) return "";
-  std::size_t b = s.find_last_not_of(" \t");
-  return s.substr(a, b - a + 1);
-}
-std::string read_file(const std::string& p) {
-  std::ifstream f(p);
-  std::stringstream ss;
-  ss << f.rdbuf();
-  return ss.str();
-}
 bool write_file(const std::string& p, const std::string& c) {
   std::ofstream f(p);
   f << c;
@@ -1148,209 +1141,6 @@ int probe_reflect(Fmt fmt) {
   return r.finish();
 }
 
-// unwind: drive the experimental non-local unwind arm and report what only execution
-// can show: the destructor count over a deep escape and the sad-path latency
-// distribution. The destructor count shows the arm runs every cleanup on the path;
-// the distribution, reported by median and high percentiles, is the evidence behind
-// the bounded-sad-path claim. A C++ throw at the same depth is measured alongside so
-// the comparison is measured rather than asserted: the arm's sad path is bounded, not
-// uniformly faster than a throw.
-//
-// The gate compares the arm's 99th-percentile latency to a C++ throw's at the same depth.
-// An absolute nanosecond bound would not travel across machines, and an absolute
-// percentile-to-median ratio flakes on a shared runner, where a rare scheduling stall
-// inflates the high percentile of any operation. Measuring both against the same runner
-// cancels that noise: a stall that lengthens the arm's tail lengthens the throw's tail
-// too, so the ratio between them stays bounded. The --inject-jitter self-test makes
-// the arm's cleanup path, and not the throw's, non-deterministic, which drives the ratio
-// past the bound and fails the gate's own negative path.
-namespace uw {
-
-volatile long long g_sink = 0;
-bool g_jitter = false;
-long long g_jitter_counter = 0;
-constexpr int depth = 8;  // at least eight frames on the escape path
-
-// A guard whose destructor does real work. The Jitter parameter selects whether a known
-// non-deterministic cleanup may be injected. It is injected on the forced-unwind path
-// only, so the gate that compares the arm's tail latency to a C++ throw's catches it,
-// while ordinary scheduling noise affects both paths together and does not.
-template <bool Jitter>
-struct GuardT {
-  int v;
-  ~GuardT() {
-    g_sink = g_sink + v;
-    // Inject jitter on one cleanup per escape, the leaf (v == 0), rather than once per
-    // frame, so the cost is one long cleanup per affected escape. A fraction of escapes
-    // then become far costlier than the rest, the non-determinism the gate catches. The
-    // loop dwarfs an ordinary escape on any runner, including a slow one with a high
-    // baseline, so the injected ratio clears the bound by a wide margin.
-    if (Jitter && g_jitter && v == 0 && (g_jitter_counter++ & 31) == 0) {
-      volatile long long s = 0;
-      for (int i = 0; i < 500000; ++i) s = s + i;
-      g_sink = g_sink + s;
-    }
-  }
-};
-
-// The escape chains are template recursions, so the depth is a compile-time bound that
-// expands to distinct frames rather than a runtime self-recursion the compiler cannot
-// fold into a single terminating path. The forced-unwind chain carries the jittered
-// guard; the C++ throw chain, the baseline, carries the plain one.
-template <int D>
-int fu_chain() {
-  GuardT<true> g{D};
-  if constexpr (D <= 0)
-    return jmpxx::unwind::eject(jmpxx::error(42));
-  else
-    return fu_chain<D - 1>() + g.v;
-}
-int fu_escape() {
-  auto r = jmpxx::unwind::escape_scope<jmpxx::error>([] { return fu_chain<depth>(); });
-  return r.has_value() ? 0 : r.error().code;
-}
-
-struct ex {
-  int code;
-};
-template <int D>
-int th_chain() {
-  GuardT<false> g{D};
-  if constexpr (D <= 0)
-    throw ex{42};
-  else
-    return th_chain<D - 1>() + g.v;
-}
-int th_escape() {
-  try {
-    return th_chain<depth>();
-  } catch (const ex& e) {
-    return e.code;
-  }
-}
-
-struct dist {
-  long long median, p90, p99, max;
-};
-
-dist summarize(std::vector<long long>& ns) {
-  std::sort(ns.begin(), ns.end());
-  auto at = [&](double p) { return ns[static_cast<std::size_t>(p * (ns.size() - 1))]; };
-  return {at(0.5), at(0.9), at(0.99), ns.back()};
-}
-
-// Measure two escape paths back to back in one loop so they sample the same contention.
-// The gate compares their tails, so the measurement must expose both paths to the same
-// stalls. Timing them microseconds apart in each iteration, rather than in two separate
-// loops, makes a stall that spans an iteration inflate both samples, which keeps the
-// relative bound from flaking when a shared runner is briefly busy.
-template <class A, class B>
-std::pair<dist, dist> measure_pair(A fa, B fb, int iters) {
-  for (int i = 0; i < 2000; ++i) g_sink = g_sink + fa() + fb();  // warm up both
-  std::vector<long long> na, nb;
-  na.reserve(iters);
-  nb.reserve(iters);
-  using clock = std::chrono::steady_clock;
-  auto elapsed = [](clock::time_point s, clock::time_point e) {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(e - s).count();
-  };
-  for (int i = 0; i < iters; ++i) {
-    auto t0 = clock::now();
-    g_sink = g_sink + fa();
-    auto t1 = clock::now();
-    g_sink = g_sink + fb();
-    auto t2 = clock::now();
-    na.push_back(elapsed(t0, t1));
-    nb.push_back(elapsed(t1, t2));
-  }
-  return {summarize(na), summarize(nb)};
-}
-
-// Count constructions and destructions over a deep escape, checking that the arm runs every
-// cleanup exactly once. Kept apart from the timed guard so timing carries no counters.
-long long c_ctor = 0, c_dtor = 0;
-struct Counted {
-  Counted() { ++c_ctor; }
-  ~Counted() { ++c_dtor; }
-};
-template <int D>
-int cnt_chain() {
-  Counted g;
-  if constexpr (D <= 0)
-    return jmpxx::unwind::eject(jmpxx::error(7));
-  else
-    return cnt_chain<D - 1>();
-}
-
-}  // namespace uw
-
-int probe_unwind(Fmt fmt, const std::vector<std::string>& args) {
-  int iters = 50000;
-  // The committed determinism bound: the arm's 99th-percentile sad path stays within this
-  // multiple of a C++ throw's at the same depth. It is set generously above the observed
-  // ratio (near 1.1 to 1.9 across compilers) so ordinary scheduling noise on a shared
-  // runner does not flake it, while still well below the ratio an injected
-  // non-deterministic cleanup produces, so the inverted self-test still fails.
-  double bound = 3.0;
-  for (std::size_t i = 0; i < args.size(); ++i) {
-    const std::string& a = args[i];
-    auto next = [&]() { return (i + 1 < args.size()) ? args[++i] : std::string(); };
-    if (a == "--inject-jitter") uw::g_jitter = true;
-    else if (a == "--iters") iters = std::atoi(next().c_str());
-    else if (a == "--bound-factor") bound = std::atof(next().c_str());
-  }
-  Report r(fmt, "unwind");
-  r.boolean("available", unwind::available());
-  if (!unwind::available()) {
-    r.note("the unwind arm has no backend on this target; nothing to drive");
-    return r.finish();
-  }
-#if JMPXX_UNWIND_BACKEND_ITANIUM
-  r.str("backend", "itanium");
-#elif JMPXX_UNWIND_BACKEND_WASM
-  r.str("backend", "wasm");
-#elif JMPXX_UNWIND_BACKEND_SEH
-  r.str("backend", "seh");
-#endif
-
-  // Destructor count over a deep escape: every cleanup runs exactly once.
-  uw::c_ctor = uw::c_dtor = 0;
-  auto cr = unwind::escape_scope<error>([] { return uw::cnt_chain<uw::depth>(); });
-  r.num("escape.frames", uw::depth + 1);
-  r.num("escape.constructed", uw::c_ctor);
-  r.num("escape.destructed", uw::c_dtor);
-  r.boolean("escape.balanced",
-            uw::c_ctor == uw::c_dtor && uw::c_ctor == uw::depth + 1);
-  if (cr.has_value() || cr.error().code != 7)
-    r.fail("the escape did not deliver its error to the landing");
-  if (uw::c_ctor != uw::c_dtor || uw::c_ctor != uw::depth + 1)
-    r.fail("a destructor was skipped or double-run on the escape path");
-
-  // Sad-path distribution, forced unwind against a C++ throw at the same depth. The gate
-  // compares the arm's tail to the throw's, so shared-runner scheduling noise that
-  // inflates both tails together cancels rather than flaking the gate.
-  auto [fu, th] = uw::measure_pair(uw::fu_escape, uw::th_escape, iters);
-  double ratio =
-      static_cast<double>(fu.p99) / static_cast<double>(th.p99 ? th.p99 : 1);
-  r.num("sad_path.iters", iters);
-  r.num("sad_path.median_ns", fu.median);
-  r.num("sad_path.p90_ns", fu.p90);
-  r.num("sad_path.p99_ns", fu.p99);
-  r.num("sad_path.max_ns", fu.max);
-  r.num("cxx_throw.median_ns", th.median);
-  r.num("cxx_throw.p99_ns", th.p99);
-  r.num("sad_path.p99_vs_throw_p99_x100", static_cast<long long>(ratio * 100));
-  r.num("sad_path.bound_x100", static_cast<long long>(bound * 100));
-  r.boolean("sad_path.bounded", ratio <= bound);
-  r.note(uw::g_jitter ? "jitter injected: a non-deterministic cleanup is expected to "
-                        "exceed the bound"
-                      : "the sad path is bounded; its tail is comparable to a C++ throw's, "
-                        "not uniformly faster");
-  if (ratio > bound)
-    r.fail("the sad-path p99 exceeded the committed multiple of a C++ throw's p99");
-  return r.finish();
-}
-
 // platform: report the build's matrix cell and the capabilities the configuration
 // enables, so a continuous-integration run records each cell's status from the same
 // surface. The compiler version is supplied by the runner, which knows it; the
@@ -1397,7 +1187,10 @@ int main(int argc, char** argv) {
   if (cmd == "interop") return probe_interop(fmt);
   if (cmd == "reflect") return probe_reflect(fmt);
   if (cmd == "platform") return probe_platform(fmt);
-  if (cmd == "unwind") return probe_unwind(fmt, rest);
+  if (cmd == "unwind") return jv::probe_unwind(fmt, rest);
+  if (cmd == "unwind-matrix") return jv::probe_unwind_matrix(fmt, rest);
+  if (cmd == "unwind-stress") return jv::probe_unwind_stress(fmt, rest);
+  if (cmd == "unwind-scale") return jv::probe_unwind_scale(fmt, rest);
   if (cmd == "codegen") return probe_codegen(fmt, rest);
   if (cmd == "release-diff") return probe_release_diff(fmt, rest);
   if (cmd == "size-delta") return probe_size_delta(fmt, rest);
@@ -1415,12 +1208,13 @@ int main(int argc, char** argv) {
     rc |= probe_interop(fmt);
     rc |= probe_reflect(fmt);
     rc |= probe_platform(fmt);
-    rc |= probe_unwind(fmt, {});
+    rc |= jv::probe_unwind(fmt, {});
     return rc;
   }
   std::fprintf(stderr,
                "usage: jmpxx-verify <size|alloc|destructors|semantics|levels|"
                "policies|diagnostics|interop|reflect|platform|unwind|all|codegen|"
-               "release-diff|size-delta|compile-cost|abi-layout> [--format=json]\n");
+               "release-diff|size-delta|compile-cost|abi-layout|unwind-matrix|"
+               "unwind-stress|unwind-scale> [--format=json]\n");
   return 2;
 }

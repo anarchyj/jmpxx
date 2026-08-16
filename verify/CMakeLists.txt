@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: MIT
-add_executable(jmpxx-verify main.cpp)
-target_link_libraries(jmpxx-verify PRIVATE jmpxx::jmpxx)
+add_executable(jmpxx-verify main.cpp unwind_probes.cpp)
+# Threads are a harness dependency, not a library one: the unwind stress and scaling
+# probes drive escapes from many threads at once.
+find_package(Threads REQUIRED)
+target_link_libraries(jmpxx-verify PRIVATE jmpxx::jmpxx Threads::Threads)
 # The harness is built at C++23 so it can exercise the std::expected bridge through
 # the interop probe where the standard library provides <expected>; the bridge
 # self-gates, so the harness still builds where it does not.

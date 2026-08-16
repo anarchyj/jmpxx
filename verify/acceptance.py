@@ -47,6 +47,15 @@ GATES = {
     "mutation_testing": ["mutation"],
     "adversarial_coverage": ["adversarial.coverage"],
     "model_lifecycle": ["model.lifecycle"],
+    # The unwind arm's own gates. Each pairs a real run with an inverted case, so the
+    # sweep reports the arm's depth evidence alongside the portable surface's.
+    "unwind_link_time": ["unwind.lto"],
+    "unwind_metadata": ["unwind.metadata"],
+    "unwind_concurrency": ["unwind.concurrent"],
+    "unwind_reentrancy": ["unwind.reentrancy"],
+    "unwind_runtime_matrix": ["unwind.matrix"],
+    "unwind_stress": ["unwind.stress"],
+    "unwind_scaling": ["unwind.scale"],
 }
 
 # Metrics worth surfacing in the report, each the JSON of one jmpxx-verify probe.
