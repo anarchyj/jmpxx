@@ -161,12 +161,7 @@ jobs:
           ${{ matrix.cxx }} -std=c++20 -O2 -static -pthread -Iinclude -Itests/unwind tests/unwind/concurrent.cpp -o conc
           ${{ matrix.qemu }} ./conc --threads 4 --iterations 200
           ${{ matrix.cxx }} -std=c++20 -O2 -static -pthread -Iinclude tests/unwind/reentrancy.cpp -o reent
-          ulimit -c 0
-          for c in $(${{ matrix.qemu }} ./reent --list); do
-            ${{ matrix.qemu }} ./reent "$c" >/dev/null 2>&1; rc=$?
-            if [ $rc -ge 128 ]; then got=terminate; elif [ $rc -eq 0 ]; then got=land; else got="fail($rc)"; fi
-            printf '  %-32s %s\n' "$c" "$got"
-          done
+          bash tests/scripts/unwind_reentrancy_check.sh "$PWD/reent" clean ${{ matrix.qemu }}
       - name: destructor balance under link-time optimization
         # The ARM exception-handling ABI cell checks its recorded limitation instead: the
         # ordinary build must work and the link-time-optimized build must be refused.
