@@ -56,9 +56,11 @@ class store {
 
  public:
   // Open a record for a newly created failure and return its handle. The handle is
-  // always unique even when the arena is full. On overflow the record is dropped and
-  // find() will not resolve the handle, so the failure carries no context rather than
-  // corrupting another record.
+  // issued before the capacity check, so a failure arriving with the arena full still
+  // gets one; its record is dropped and find() will not resolve it, so the failure
+  // carries no context rather than corrupting another record. A handle needs to be
+  // distinct only among the records live at one moment, so the counter wraps after
+  // 2^32 opens and reuses values retired long before.
   std::uint32_t open(const std::source_location& origin) noexcept {
     std::uint32_t id = next_id_++;
     if (next_id_ == 0) next_id_ = 1;
@@ -96,7 +98,7 @@ class store {
     r->hops[r->hop_count++] = loc;
   }
 
-  // The current arena depth, snapshotted by a landing scope on entry.
+  // A landing scope snapshots this on entry.
   [[nodiscard]] int mark() const noexcept { return depth_; }
 
   // Release every record opened since a snapshot, bounding diagnostic lifetime to

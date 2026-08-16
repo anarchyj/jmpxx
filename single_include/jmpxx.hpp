@@ -377,16 +377,8 @@ struct error {
 // SPDX-License-Identifier: MIT
 // The propagation diagnostic hook. Single-construct propagation calls
 // note_propagation on the failure path so a hosted diagnostic layer can record a
-// causal hop as a failure travels toward its landing boundary. The core ships
-// only the no-op default here: it compiles to nothing, pulls in no hosted header,
-// and is selected by overload resolution for any error representation that
-// carries no out-of-band context, so the freestanding minimal core stays pure and
-// the zero-overhead codegen is unchanged. The rich policy (jmpxx/diagnostics.hpp)
-// adds an overload for its error type that captures the propagation-site location.
-//
-// The hook is reached only through the propagation macros, and only when
-// JMPXX_DIAGNOSTICS_ENABLED is on; the macros expand it to nothing otherwise. It
-// lives in detail because it is an internal hook, not a caller-facing entry point.
+// causal hop as a failure travels toward its landing boundary. The core carries the
+// no-op default and jmpxx/diagnostics.hpp contributes the recording overload.
 #ifndef JMPXX_CORE_DIAGNOSTIC_HOOK_HPP
 #define JMPXX_CORE_DIAGNOSTIC_HOOK_HPP
 
@@ -394,9 +386,8 @@ struct error {
 namespace jmpxx {
 namespace detail {
 
-// An error representation with no out-of-band context records no hop. A more
-// specialized non-template overload, contributed by a richer policy, wins over
-// this template for that policy's error type.
+// A more specialized non-template overload, contributed by a richer policy, wins
+// over this template for that policy's error type.
 template <class E>
 JMPXX_ALWAYS_INLINE constexpr void note_propagation(const E&) noexcept {}
 
@@ -1319,9 +1310,11 @@ class store {
 
  public:
   // Open a record for a newly created failure and return its handle. The handle is
-  // always unique even when the arena is full. On overflow the record is dropped and
-  // find() will not resolve the handle, so the failure carries no context rather than
-  // corrupting another record.
+  // issued before the capacity check, so a failure arriving with the arena full still
+  // gets one; its record is dropped and find() will not resolve it, so the failure
+  // carries no context rather than corrupting another record. A handle needs to be
+  // distinct only among the records live at one moment, so the counter wraps after
+  // 2^32 opens and reuses values retired long before.
   std::uint32_t open(const std::source_location& origin) noexcept {
     std::uint32_t id = next_id_++;
     if (next_id_ == 0) next_id_ = 1;
@@ -1359,7 +1352,7 @@ class store {
     r->hops[r->hop_count++] = loc;
   }
 
-  // The current arena depth, snapshotted by a landing scope on entry.
+  // A landing scope snapshots this on entry.
   [[nodiscard]] int mark() const noexcept { return depth_; }
 
   // Release every record opened since a snapshot, bounding diagnostic lifetime to
@@ -2240,18 +2233,8 @@ namespace platform {
 // SPDX-License-Identifier: MIT
 // The interoperability bridges, gathered for a hosted consumer.
 //
-// This umbrella pulls in every bridge: the std::expected conversion, the
-// std::error_code adoption, the opt-in exception boundary, and the optional-like
-// adapters. It is a convenience for a hosted program that wants the whole interop
-// surface in one include; because the error_code bridge needs <system_error> and
-// the expected bridge needs <expected>, including this header is a hosted choice.
-//
-// A freestanding or minimal consumer includes only the specific bridge it needs.
-// jmpxx/interop/expected.hpp and jmpxx/interop/adapt.hpp are freestanding-capable;
-// jmpxx/interop/error_code.hpp and jmpxx/interop/exception.hpp are hosted, and the
-// latter is present only where exceptions are enabled. Each bridge defines a macro
-// (JMPXX_INTEROP_HAS_EXPECTED, JMPXX_INTEROP_HAS_EXCEPTION_BRIDGE) a consumer can
-// test to learn whether it is available in the current configuration.
+// Including this umbrella is a hosted choice: the error_code bridge needs
+// <system_error> and the expected bridge needs <expected>.
 #ifndef JMPXX_INTEROP_HPP
 #define JMPXX_INTEROP_HPP
 
