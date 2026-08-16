@@ -70,7 +70,13 @@ if(UNIX AND NOT MSVC)
   # The subject runs as its own case too: the same binary the audit reads is one that
   # delivers its escapes, so the static and the live evidence are about one artifact.
   add_test(NAME unwind.exec.cross_unit COMMAND jmpxx_unwind_metadata_subject)
-  if(JMPXX_PYTHON3)
+  # The audit decodes ELF sections directly, so it is meaningful only where the object
+  # format is ELF. Apple platforms are Mach-O and their compact unwind is a different
+  # encoding this does not read; the destructor-count tiers above still cover them, and
+  # the emitted metadata there is unaudited. Running it anyway would not merely skip: the
+  # audit would raise on the file header, and because the inverted case is registered
+  # WILL_FAIL, that raise made the teeth test pass without ever reading a landing pad.
+  if(JMPXX_PYTHON3 AND NOT APPLE)
     add_test(NAME unwind.metadata COMMAND ${JMPXX_PYTHON3}
       ${CMAKE_SOURCE_DIR}/tests/scripts/unwind_metadata_audit.py
       $<TARGET_FILE:jmpxx_unwind_metadata_subject>
