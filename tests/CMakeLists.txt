@@ -235,6 +235,15 @@ if(NOT MSVC)
   add_test(NAME interop.no_exceptions COMMAND jmpxx_interop_noexc)
 endif()
 
+# The public headers survive a consumer whose own headers came first. The Trusted Firmware
+# and OP-TEE convention defines U, UL and ULL as integer-suffix macros, which collided with
+# a type alias the transport used in a call-shaped position; a firmware consumer could not
+# include jmpxx after their own headers. Compiling this fixture is the test.
+add_executable(jmpxx_firmware_macros interop/firmware_macros.cpp)
+target_link_libraries(jmpxx_firmware_macros PRIVATE jmpxx::jmpxx)
+target_compile_options(jmpxx_firmware_macros PRIVATE ${JMPXX_TEST_WARNINGS})
+add_test(NAME interop.firmware_macros COMMAND jmpxx_firmware_macros)
+
 # The std::expected bridge preserves the freestanding property: it builds and runs
 # -ffreestanding and the minimal core pulls no <expected> or <system_error>. Pinned
 # to g++-13 on Linux, the one libstdc++ that honors -ffreestanding.

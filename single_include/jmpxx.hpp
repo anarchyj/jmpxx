@@ -863,31 +863,31 @@ class JMPXX_NODISCARD(
   template <class F>
   constexpr auto and_then(F&& f) & {
     if constexpr (is_void) {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
-      return has_ ? static_cast<F&&>(f)() : U(fail(err_));
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
+      return has_ ? static_cast<F&&>(f)() : chained(fail(err_));
     } else {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)(val_))>;
-      return has_ ? static_cast<F&&>(f)(val_) : U(fail(err_));
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)(val_))>;
+      return has_ ? static_cast<F&&>(f)(val_) : chained(fail(err_));
     }
   }
   template <class F>
   constexpr auto and_then(F&& f) const& {
     if constexpr (is_void) {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
-      return has_ ? static_cast<F&&>(f)() : U(fail(err_));
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
+      return has_ ? static_cast<F&&>(f)() : chained(fail(err_));
     } else {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)(val_))>;
-      return has_ ? static_cast<F&&>(f)(val_) : U(fail(err_));
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)(val_))>;
+      return has_ ? static_cast<F&&>(f)(val_) : chained(fail(err_));
     }
   }
   template <class F>
   constexpr auto and_then(F&& f) && {
     if constexpr (is_void) {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
-      return has_ ? static_cast<F&&>(f)() : U(fail(detail::move(err_)));
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
+      return has_ ? static_cast<F&&>(f)() : chained(fail(detail::move(err_)));
     } else {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)(detail::move(val_)))>;
-      return has_ ? static_cast<F&&>(f)(detail::move(val_)) : U(fail(detail::move(err_)));
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)(detail::move(val_)))>;
+      return has_ ? static_cast<F&&>(f)(detail::move(val_)) : chained(fail(detail::move(err_)));
     }
   }
 
@@ -895,62 +895,62 @@ class JMPXX_NODISCARD(
   template <class F>
   constexpr auto transform(F&& f) & {
     if constexpr (is_void) {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
-      if constexpr (std::is_void_v<U>) {
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
+      if constexpr (std::is_void_v<chained>) {
         if (has_) { static_cast<F&&>(f)(); return result<void, E>(); }
         return result<void, E>(fail(err_));
       } else {
-        return has_ ? result<U, E>(static_cast<F&&>(f)()) : result<U, E>(fail(err_));
+        return has_ ? result<chained, E>(static_cast<F&&>(f)()) : result<chained, E>(fail(err_));
       }
     } else {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)(val_))>;
-      if constexpr (std::is_void_v<U>) {
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)(val_))>;
+      if constexpr (std::is_void_v<chained>) {
         if (has_) { static_cast<F&&>(f)(val_); return result<void, E>(); }
         return result<void, E>(fail(err_));
       } else {
-        return has_ ? result<U, E>(static_cast<F&&>(f)(val_)) : result<U, E>(fail(err_));
+        return has_ ? result<chained, E>(static_cast<F&&>(f)(val_)) : result<chained, E>(fail(err_));
       }
     }
   }
   template <class F>
   constexpr auto transform(F&& f) const& {
     if constexpr (is_void) {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
-      if constexpr (std::is_void_v<U>) {
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
+      if constexpr (std::is_void_v<chained>) {
         if (has_) { static_cast<F&&>(f)(); return result<void, E>(); }
         return result<void, E>(fail(err_));
       } else {
-        return has_ ? result<U, E>(static_cast<F&&>(f)()) : result<U, E>(fail(err_));
+        return has_ ? result<chained, E>(static_cast<F&&>(f)()) : result<chained, E>(fail(err_));
       }
     } else {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)(val_))>;
-      if constexpr (std::is_void_v<U>) {
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)(val_))>;
+      if constexpr (std::is_void_v<chained>) {
         if (has_) { static_cast<F&&>(f)(val_); return result<void, E>(); }
         return result<void, E>(fail(err_));
       } else {
-        return has_ ? result<U, E>(static_cast<F&&>(f)(val_)) : result<U, E>(fail(err_));
+        return has_ ? result<chained, E>(static_cast<F&&>(f)(val_)) : result<chained, E>(fail(err_));
       }
     }
   }
   template <class F>
   constexpr auto transform(F&& f) && {
     if constexpr (is_void) {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
-      if constexpr (std::is_void_v<U>) {
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)())>;
+      if constexpr (std::is_void_v<chained>) {
         if (has_) { static_cast<F&&>(f)(); return result<void, E>(); }
         return result<void, E>(fail(detail::move(err_)));
       } else {
-        return has_ ? result<U, E>(static_cast<F&&>(f)())
-                    : result<U, E>(fail(detail::move(err_)));
+        return has_ ? result<chained, E>(static_cast<F&&>(f)())
+                    : result<chained, E>(fail(detail::move(err_)));
       }
     } else {
-      using U = std::remove_cvref_t<decltype(static_cast<F&&>(f)(detail::move(val_)))>;
-      if constexpr (std::is_void_v<U>) {
+      using chained = std::remove_cvref_t<decltype(static_cast<F&&>(f)(detail::move(val_)))>;
+      if constexpr (std::is_void_v<chained>) {
         if (has_) { static_cast<F&&>(f)(detail::move(val_)); return result<void, E>(); }
         return result<void, E>(fail(detail::move(err_)));
       } else {
-        return has_ ? result<U, E>(static_cast<F&&>(f)(detail::move(val_)))
-                    : result<U, E>(fail(detail::move(err_)));
+        return has_ ? result<chained, E>(static_cast<F&&>(f)(detail::move(val_)))
+                    : result<chained, E>(fail(detail::move(err_)));
       }
     }
   }
