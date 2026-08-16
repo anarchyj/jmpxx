@@ -23,7 +23,9 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
+#if JMPXX_COMPILER_MSVC
+#include <cstring>  // the byte helpers below use the library where no builtin exists
+#endif
 
 // Backend selection. Exactly one JMPXX_UNWIND_BACKEND_* is 1 when the arm is
 // available; all are 0 on a target with no supported backend, where the public API
@@ -43,9 +45,21 @@
 #define JMPXX_UNWIND_BACKEND_ITANIUM 0
 #define JMPXX_UNWIND_BACKEND_SEH 1
 #define JMPXX_UNWIND_AVAILABLE 1
+#elif (JMPXX_COMPILER_GCC || JMPXX_COMPILER_CLANG) && defined(__SEH__)
+// A GCC or Clang toolchain targeting Windows with structured exception handling, which
+// is what MinGW-w64 uses on x86-64. It declares _Unwind_ForcedUnwind, so the arm would
+// link, but libgcc's structured-exception unwinder does not implement it: the call
+// returns _URC_END_OF_STACK without ever invoking the stop function or running a single
+// cleanup, verified live under Wine with GCC 13, while an ordinary throw on the same
+// toolchain unwinds correctly. An arm that links and then cannot escape is worse than one
+// that refuses, so the backend is absent here and available() is false.
+#define JMPXX_UNWIND_BACKEND_WASM 0
+#define JMPXX_UNWIND_BACKEND_ITANIUM 0
+#define JMPXX_UNWIND_BACKEND_SEH 0
+#define JMPXX_UNWIND_AVAILABLE 0
 #elif JMPXX_COMPILER_GCC || JMPXX_COMPILER_CLANG
 // GCC and Clang provide the Itanium and EHABI _Unwind_ForcedUnwind interface through
-// libgcc or libunwind on Linux, macOS, the BSDs, and MinGW.
+// libgcc or libunwind on Linux, macOS, and the BSDs.
 #define JMPXX_UNWIND_BACKEND_WASM 0
 #define JMPXX_UNWIND_BACKEND_ITANIUM 1
 #define JMPXX_UNWIND_BACKEND_SEH 0
@@ -73,6 +87,30 @@ namespace jmpxx {
 namespace unwind {
 namespace detail {
 
+// Byte copy and fill, taken from the compiler rather than from <cstring>.
+//
+// The arm reaches environments whose C library is smaller than the hosted one, and an
+// OP-TEE trusted application is the case that forced this: its libc provides memcpy and
+// memset but not the whole of <string.h>, and libstdc++'s <cstring> declares the entire
+// surface, so including it there does not compile. The builtins need no header at all and
+// the compiler lowers them to the same instructions. MSVC has no such builtin, so it uses
+// the library, which is available in every configuration MSVC supports here.
+inline void copy_bytes(void* to, const void* from, std::size_t n) noexcept {
+#if JMPXX_COMPILER_MSVC
+  std::memcpy(to, from, n);
+#else
+  __builtin_memcpy(to, from, n);
+#endif
+}
+
+inline void fill_zero(void* at, std::size_t n) noexcept {
+#if JMPXX_COMPILER_MSVC
+  std::memset(at, 0, n);
+#else
+  __builtin_memset(at, 0, n);
+#endif
+}
+
 // The out-of-band carrier and landing state for one in-flight escape. It lives in
 // the landing frame (it is escape_scope's own automatic object), so it costs no
 // allocation and its lifetime is the landing scope. The error payload travels here,
@@ -96,6 +134,17 @@ struct carrier {
 #if JMPXX_UNWIND_BACKEND_ITANIUM || JMPXX_UNWIND_BACKEND_SEH
   std::jmp_buf buf;  // resume point planted by escape_scope
 #endif
+#if JMPXX_UNWIND_BACKEND_ITANIUM
+  // The unwind object this scope's escape travels in. It belongs to the scope rather
+  // than to the thread because a cleanup running during one escape may open a further
+  // scope and escape inside it, and the two unwinds are then in flight at once. The
+  // runtime keeps its own state for an in-flight forced unwind inside this object, so a
+  // second escape sharing it would overwrite the first's stop function and landing and
+  // resume the outer unwind into a frame that no longer exists. Holding it here costs
+  // no allocation: the carrier is the landing frame's own automatic object, and the
+  // landing outlives every unwind that targets it.
+  _Unwind_Exception exception;
+#endif
 };
 
 // A distinct address per error type, used as the carrier's type tag. Two ejects
@@ -111,11 +160,27 @@ inline carrier*& active() noexcept {
   return top;
 }
 
-// The return type of eject. eject does not return at run time, but it is deliberately
-// not marked [[noreturn]]: that attribute would let the optimizer prove the eject site
-// neither returns nor throws and elide the cleanup landing pads the forced unwind
-// depends on. Returning this type instead lets a caller write `return unwind::eject(e)`
-// in a function of any return type without a "control reaches end of non-void function"
+// Whether an escape is unwinding on this thread right now. It is set before the unwind
+// begins and cleared when the landing resumes, so code that runs as a cleanup during an
+// escape can be told apart from ordinary code.
+//
+// The arm refuses a second escape while one is in flight. The refusal is uniform across
+// the ABIs rather than allowed where it happens to work: an escape started from a cleanup
+// completes on the DWARF ABIs, terminates on the ARM exception-handling ABI, and is a
+// throw during unwinding on WebAssembly, which the language terminates. One contract the
+// caller can rely on everywhere is worth more than a capability that aborts on a quarter
+// of the supported targets, so the arm refuses it with its own diagnostic on all of them.
+inline bool& escape_in_flight() noexcept {
+  static thread_local bool unwinding = false;
+  return unwinding;
+}
+
+// The return type of eject. eject does not return at run time, and it is deliberately
+// not marked [[noreturn]]: the attribute is one route to the proof that deletes the
+// cleanup landing pads the forced unwind depends on, though not on its own on the
+// compilers in the support matrix. drive_unwind below states that constraint in full.
+// Returning this type instead lets a caller write `return unwind::eject(e)` in a
+// function of any return type without a "control reaches end of non-void function"
 // warning, while the conversion is never evaluated. If it ever were, it fails fast
 // rather than fabricating a value.
 struct never {
@@ -198,36 +263,37 @@ inline void escape_cleanup(_Unwind_Reason_Code, _Unwind_Exception*) noexcept {
   report_swallowed_escape();
 }
 
-// Begin the forced unwind toward the active scope's landing. One escape is in flight
-// per thread at a time, so the exception object is a reused per-thread object rather
-// than an allocation. It does not return at run time: it either longjmps into the
-// landing or, if the platform cannot unwind at all, fails fast.
+// Begin the forced unwind toward the active scope's landing, in the unwind object the
+// scope owns. It does not return at run time: it either longjmps into the landing or,
+// if the platform cannot unwind at all, fails fast.
 //
 // Two non-obvious correctness constraints are guarded by destructor-count tiers:
 //   * It must not be noexcept. It is the innermost frame the forced unwind processes,
 //     and an empty exception specification on the path terminates the unwind at that
 //     frame. The same constraint binds every frame between an eject and its landing.
-//   * It must not be provably noreturn, and it is kept opaque (noinline) so a caller
-//     cannot see that its body never throws a modeled exception. The forced unwind is
-//     invisible to the optimizer, so a provably-noreturn, fully-inlined eject would
-//     let the optimizer conclude the eject site neither returns nor throws and elide
-//     the cleanup landing pads the forced unwind depends on, silently skipping
-//     destructors at -O1 and above. Keeping eject modeled as a call that may unwind is
-//     what makes those landing pads survive optimization. The volatile guard below
-//     denies the optimizer the proof that this function never returns.
+//   * It must not be provably nothrow, and it is kept opaque (noinline) so a caller
+//     cannot see that its body leaves no exceptional edge. The forced unwind is
+//     invisible to the optimizer, so an eject a caller can prove never unwinds leaves
+//     no reachable cleanup landing pad at that call site, and the pads the forced
+//     unwind depends on are deleted, silently skipping destructors at -O1 and above.
+//     [[noreturn]] is declined for the same reason rather than on its own account: the
+//     attribute alone does not reach this on the compilers in the support matrix, which
+//     keep the pads while the call may still unwind, but it combines with full inlining
+//     toward the same proof. Keeping eject modeled as a call that may unwind is what
+//     makes those landing pads survive optimization. The volatile guard below keeps a
+//     path on which this function returns, which denies the optimizer both proofs.
 JMPXX_NOINLINE inline void drive_unwind(carrier* car) {
-  static thread_local _Unwind_Exception exception;
   // Zeroing the whole object initializes the words the unwinder reserves for itself
   // (the generic ABI's private_1/private_2, the EHABI unwinder cache) without naming
   // them, then the class and cleanup are set the way each ABI types them.
-  std::memset(&exception, 0, sizeof(exception));
+  fill_zero(&car->exception, sizeof(car->exception));
 #ifdef __ARM_EABI_UNWINDER__
-  std::memcpy(exception.exception_class, escape_class, sizeof(escape_class));
+  copy_bytes(car->exception.exception_class, escape_class, sizeof(escape_class));
 #else
-  exception.exception_class = escape_class;
+  car->exception.exception_class = escape_class;
 #endif
-  exception.exception_cleanup = escape_cleanup;
-  _Unwind_ForcedUnwind(&exception, stop_function, car);
+  car->exception.exception_cleanup = escape_cleanup;
+  _Unwind_ForcedUnwind(&car->exception, stop_function, car);
   // Reached only if the platform could not unwind at all (no cleanup tables): a
   // defined fail-fast. The volatile read cannot be folded, so the optimizer keeps a
   // path on which this function returns and does not infer it noreturn.

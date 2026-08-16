@@ -18,6 +18,12 @@
 
 using namespace jmpxx;
 
+// The arm's surface refuses instantiation where no backend exists, so a fixture that
+// drives it cannot be compiled there at all. The cases below are therefore gated on the
+// backend rather than on a runtime check, and a target without one reports that and
+// passes: there is nothing to execute, which is itself the contract.
+#if JMPXX_UNWIND_AVAILABLE
+
 namespace {
 
 int g_fail = 0;
@@ -203,12 +209,14 @@ void test_payload_boundary() {
 
 }  // namespace
 
+#endif  // JMPXX_UNWIND_AVAILABLE
+
 int main() {
   std::printf("unwind_exec: backend available=%d\n", (int)unwind::available());
-  if (!unwind::available()) {
-    std::printf("  arm has no backend on this target; nothing to execute\n");
-    return 0;
-  }
+#if !JMPXX_UNWIND_AVAILABLE
+  std::printf("  arm has no backend on this target; nothing to execute\n");
+  return 0;
+#else
   test_deep_destructor_counts();
   test_void_body();
   test_nesting();
@@ -216,4 +224,5 @@ int main() {
   test_payload_boundary();
   std::printf("unwind_exec: %s\n", g_fail == 0 ? "PASS" : "FAIL");
   return g_fail == 0 ? 0 : 1;
+#endif
 }

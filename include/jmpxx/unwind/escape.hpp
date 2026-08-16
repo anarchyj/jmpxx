@@ -17,9 +17,7 @@
 #include "jmpxx/platform/trap.hpp"
 #include "jmpxx/unwind/backend.hpp"
 
-#include <array>
 #include <cstddef>
-#include <cstring>
 #include <type_traits>
 
 namespace jmpxx {
@@ -53,8 +51,13 @@ template <class E>
   // __builtin_bit_cast is used rather than std::bit_cast so the arm needs no <bit>,
   // which the older WebAssembly toolchain's libc++ does not provide; every supported
   // compiler has the builtin, the same way the core already uses __builtin_addressof.
-  std::array<unsigned char, sizeof(E)> bytes;
-  std::memcpy(bytes.data(), car.error, sizeof(E));
+  // The byte holder is a plain aggregate rather than std::array, so the arm needs no
+  // <array> either, which keeps its include set to the freestanding headers a trusted
+  // application and a bare-metal C library can both provide.
+  struct bytes_of {
+    unsigned char raw[sizeof(E)];
+  } bytes;
+  copy_bytes(bytes.raw, car.error, sizeof(E));
   return __builtin_bit_cast(E, bytes);
 }
 
@@ -63,8 +66,14 @@ template <class E>
 // must live in a frame the forced unwind destroys, not in the landing frame the
 // landing resumes. If the body inlined into the landing frame, its objects would be
 // constructed between the landing's setjmp and the resuming longjmp and the longjmp
-// would skip their destructors, the RAII break the arm exists to prevent. A
-// destructor-count tier guards this at every optimization level.
+// would skip their destructors, the RAII break the arm exists to prevent.
+//
+// The destructor-count tiers would catch an imbalance from this cause, but unlike the
+// arm's other defences it has no inverted subject proving they do: one was written and
+// forcing the body inline still destroyed its objects correctly on every compiler and
+// optimization level tried. This attribute therefore rests on the reasoning above rather
+// than on a case that fails without it, which is a weaker footing and is why it is said
+// here plainly.
 template <class T, class E, class Body>
 JMPXX_NOINLINE result<T, E> run_body(Body&& body) {
   if constexpr (std::is_void_v<T>) {
@@ -105,15 +114,21 @@ detail::never eject(E err) {
   if (car->error_tag != &detail::type_tag<E>)
     platform::fail_fast(
         "jmpxx::unwind::eject: error type does not match the active escape_scope");
-  std::memcpy(car->error, &err, sizeof(E));
+  if (detail::escape_in_flight())
+    platform::fail_fast(
+        "jmpxx::unwind::eject: an escape is already unwinding on this thread; a "
+        "destructor running as its cleanup cannot start a second escape");
+  detail::copy_bytes(car->error, &err, sizeof(E));
   car->ejected = true;
+  detail::escape_in_flight() = true;
 #if JMPXX_UNWIND_BACKEND_WASM
   detail::throw_escape();
-#else
+#elif JMPXX_UNWIND_AVAILABLE
   detail::drive_unwind(car);
 #endif
   // Not reached at run time: the backend above transfers control to the landing. The
-  // return keeps eject from being inferred noreturn, which preserves the cleanup tables.
+  // return keeps the optimizer from concluding that eject can neither return nor unwind,
+  // which is the proof that would delete the caller's cleanup landing pads.
   return detail::never{};
 }
 
@@ -161,9 +176,10 @@ template <class E = error, class Body>
     if (car.ejected) detail::report_swallowed_escape();
     return produced;
   } catch (const detail::escape_signal&) {
+    detail::escape_in_flight() = false;
     return result<T, E>(fail(detail::read_error<E>(car)));
   }
-#else
+#elif JMPXX_UNWIND_AVAILABLE
   // setjmp returns 0 on the direct path and 1 when the stop function lands the unwind
   // here. On the direct path the body runs in its own frame; on the landing path the
   // ejected error is read from the carrier. The landing frame is identified by the
@@ -173,7 +189,14 @@ template <class E = error, class Body>
     if (car.ejected) detail::report_swallowed_escape();
     return produced;
   }
+  // The landing has been reached, so this thread is no longer unwinding and may escape
+  // again.
+  detail::escape_in_flight() = false;
   return result<T, E>(fail(detail::read_error<E>(car)));
+#else
+  // No backend on this target. The static assertion above is the diagnostic; the body
+  // exists only so the template still parses, and it cannot run.
+  return detail::run_body<T, E>(static_cast<Body&&>(body));
 #endif
 }
 

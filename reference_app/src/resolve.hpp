@@ -105,9 +105,9 @@ class resolver {
     return out;
   }
 
-  // Record the offending key out of band and eject the kind and depth. This function is
-  // not marked noreturn so the arm keeps the cleanup tables the escape depends on; it
-  // does not return at run time.
+  // Record the offending key out of band and eject the kind and depth. Left as an
+  // ordinary function so a caller cannot prove it never unwinds, which is the proof that
+  // would delete the cleanups the escape depends on; it does not return at run time.
   void eject_with(int k, const std::string& key, int depth) {
     error_key_ = key;
     jmpxx::unwind::eject(jmpxx::error(k, depth));
