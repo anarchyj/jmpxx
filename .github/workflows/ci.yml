@@ -2,10 +2,23 @@
 name: ci
 
 on:
+  # Every branch, not only the default one. A push of several commits runs this workflow
+  # once, on the tip, so in a branch-limited configuration every commit below the tip
+  # carries no verdict at all: a claim that each commit builds is then an assertion rather
+  # than a result, and the per-directory status a reader sees is the status of whichever
+  # commit last touched that directory, which is usually not the tip.
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
   workflow_dispatch:
+
+# One run per ref. A push to a branch that also has a pull request open would otherwise
+# start the same matrix twice, and a second push while the first is still going does not
+# need the first to finish. Grouping by ref keeps distinct branches independent, so a
+# backfill across many refs is not self-cancelling.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   linux:
