@@ -144,8 +144,13 @@ def is_claim(sentence):
     """Whether a sentence asserts something the project must be able to back."""
     if len(sentence.split()) < MIN_TOKENS:
         return False
-    return bool(QUANTITY.search(sentence) or ABSOLUTE.search(sentence)
-                or BACKING.search(sentence))
+    # MEASURED_QUANTITY is consulted as well as QUANTITY so that the narrow pattern is
+    # a subset of the broad one by construction. They drifted apart: a count of
+    # templates read as a measurement to the provenance rule and as nothing at all to
+    # the extractor, so the comparison's headline compile cost was never a claim and
+    # never needed backing.
+    return bool(QUANTITY.search(sentence) or MEASURED_QUANTITY.search(sentence)
+                or ABSOLUTE.search(sentence) or BACKING.search(sentence))
 
 
 def digest(sentence):

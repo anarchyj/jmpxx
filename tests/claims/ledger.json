@@ -942,18 +942,6 @@
   },
   {
    "file": "docs/comparison.md",
-   "digest": "1051a9f555ae",
-   "text": "The deterministic compile-cost gate bounds that instantiation count so it cannot grow unnoticed, and the cost over a plain integer return is the cost of the type-level guarantees.",
-   "disposition": "measurement",
-   "backing": "jmpxx-verify compile-cost",
-   "provenance": {
-    "tool": "jmpxx-verify compile-cost",
-    "target": "x86-64 Linux, clang++-18 18.1.3, -O0",
-    "obtained": "2026-08-17"
-   }
-  },
-  {
-   "file": "docs/comparison.md",
    "digest": "25573124ac4c",
    "text": "At full failure and depth eight, a thrown exception measured about forty-seven times a jmpxx escape and about two hundred times the hand-written branch, with a wider high percentile.",
    "disposition": "measurement",
@@ -1036,6 +1024,26 @@
    "provenance": {
     "tool": "jmpxx-bench run",
     "target": "x86-64 Linux (WSL2), g++-13 13.3.0, -O2",
+    "obtained": "2026-08-17"
+   }
+  },
+  {
+   "file": "docs/comparison.md",
+   "digest": "59693ff12401",
+   "text": "The deterministic compile-cost gate bounds the count against a fixed budget rather than against this figure, so what cannot grow unnoticed is the cost itself, and the cost over a plain integer return is the cost of the type-level guarantees.",
+   "disposition": "gate",
+   "backing": "compile_cost compile_cost.teeth",
+   "reason": "the figure is re-derived by the gate that backs it on every run, so its currency is the last build rather than a date"
+  },
+  {
+   "file": "docs/comparison.md",
+   "digest": "5eef69c9ea45",
+   "text": "A translation unit that uses the result transport for one chain instantiates about 170 templates under Clang 19, against nine for the hand-written baseline, and takes roughly twice as long to translate.",
+   "disposition": "measurement",
+   "backing": "compile_cost",
+   "provenance": {
+    "tool": "jmpxx-verify compile-cost",
+    "target": "x86-64 Linux, clang++-19 19.1.1, the shipped fixture against the hand-written baseline",
     "obtained": "2026-08-17"
    }
   },
@@ -1208,6 +1216,14 @@
     "target": "x86-64 Linux (WSL2), g++-13 13.3.0, -O2",
     "obtained": "2026-08-17"
    }
+  },
+  {
+   "file": "docs/comparison.md",
+   "digest": "de70e88d5457",
+   "text": "Compiled at -O2, an eight-frame JMPXX_TRY chain that returns a value generates the same machine code as the same chain written by hand with a status flag.",
+   "disposition": "gate",
+   "backing": "codegen.value_return codegen.propagate_eight codegen.identity",
+   "reason": "the figure is re-derived by the gate that backs it on every run, so its currency is the last build rather than a date"
   },
   {
    "file": "docs/comparison.md",
