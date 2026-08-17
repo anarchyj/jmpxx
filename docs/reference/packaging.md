@@ -34,7 +34,7 @@ installed copy first, from one call:
 include(FetchContent)
 FetchContent_Declare(jmpxx
   GIT_REPOSITORY https://github.com/anarchyj/jmpxx.git
-  GIT_TAG v0.1.3
+  GIT_TAG v0.1.4
   FIND_PACKAGE_ARGS NAMES jmpxx)
 FetchContent_MakeAvailable(jmpxx)
 target_link_libraries(app PRIVATE jmpxx::jmpxx)
@@ -48,7 +48,7 @@ not inherit them.
 ## CPM.cmake
 
 ```cmake
-CPMAddPackage("gh:anarchyj/jmpxx@0.1.3")
+CPMAddPackage("gh:anarchyj/jmpxx@0.1.4")
 target_link_libraries(app PRIVATE jmpxx::jmpxx)
 ```
 
@@ -63,7 +63,7 @@ conan create . -s compiler.cppstd=20
 
 ```python
 def requirements(self):
-    self.requires("jmpxx/0.1.3")
+    self.requires("jmpxx/0.1.4")
 ```
 
 The CMake target is `jmpxx::jmpxx`. Conan does not propagate a compile-feature

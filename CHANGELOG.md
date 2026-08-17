@@ -8,6 +8,15 @@ is recorded here with its migration impact.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-17
+
+### Changed
+- The repository moved and every reference now names its current location: the package
+  homepage and CMake project URL, the citation metadata, the vcpkg port source, and the
+  FetchContent, CPM and Conan examples in the packaging reference. Requests to the old
+  path are still redirected, so 0.1.3 keeps working, but a consumer reading the metadata
+  now gets the canonical location.
+
 ### Fixed
 - The unwind reference claimed that a catch-all on the escape path is loud on every
   runtime and never produces a silent wrong landing. On libcxxrt, which is the C++
@@ -18,6 +27,12 @@ is recorded here with its migration impact.
   either, because the runtime skips those frames before the arm regains control. The
   reference now states the limitation, and the per-runtime matrix records the three
   cells and fails if their behaviour changes in either direction.
+- Four verification gates reported failures that were properties of the platform rather
+  than of the library: the cross-architecture reentrancy step ended at its first correct
+  refusal because a workflow step runs under `set -e`, two gate scripts aborted on bash
+  3.2 where expanding an empty array under `set -u` is an error, the unwind metadata
+  audit ran its ELF decoder against Mach-O, and the scaling gate's injected defect was
+  clamped to the core count so on a two-core runner it landed exactly on its own bound.
 
 ## [0.1.3] - 2026-08-16
 
@@ -169,7 +184,8 @@ explicitly opt-in.
   macros for consumer version checks.
 - SPDX license tags on source files and the MIT license text in `LICENSE`.
 
-[Unreleased]: https://github.com/anarchyj/jmpxx/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/anarchyj/jmpxx/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/anarchyj/jmpxx/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/anarchyj/jmpxx/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/anarchyj/jmpxx/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/anarchyj/jmpxx/compare/v0.1.0...v0.1.1
