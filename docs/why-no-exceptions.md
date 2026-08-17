@@ -40,9 +40,10 @@ widened through a dozen signatures that never look at it.
 
 jmpxx removes the manual threading while keeping the properties no-exceptions code
 depends on. A failure returns through the chain as an ordinary value, so the sad path is a
-branch with a cost you can read, not an unwinder walk. The error travels out of band, so
-the functions in the middle of the chain do not grow an error type in their signatures.
-Destructors still run, because the value returns normally through each frame.
+branch with a cost you can read, not an unwinder walk. Each frame forwards it with one
+construct instead of the check-and-return you would otherwise write, and the context the
+failure accumulates travels out of band so the returned value stays narrow. Destructors
+still run, because the value returns normally through each frame.
 The cost is measured rather than asserted; see [comparison.md](comparison.md) for the
 numbers, the gates behind them, and where jmpxx does not win.
 

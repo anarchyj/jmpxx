@@ -20,8 +20,10 @@ Exceptions keep cleanup correct, at the cost of unwind tables and a failure path
 whose latency is hard to bound.
 
 jmpxx removes the manual threading while keeping destructors correct and the
-cost bounded. The error value is stored out of band, so the functions in the
-middle of the chain never grow an error type in their signatures.
+cost bounded. A failure travels back as an ordinary return value and each call
+site forwards it with one construct rather than a hand-written branch. What the
+failure accumulates on the way, its origin and the path it took, is held out of
+band, so the value the chain returns stays the width of a value-or-error union.
 
 ## Example
 
