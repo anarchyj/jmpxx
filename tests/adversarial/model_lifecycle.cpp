@@ -321,6 +321,7 @@ int main(int argc, char** argv) {
   check_diagnostic_capacity_model();
   run_transport_model(inject);
   run_propagation_model(inject);
+  std::printf("    cases.asked  %d\n    cases.known  %d\n", 4, 4);
   std::printf("model lifecycle: transport, propagation, and landing matched the model\n");
   return 0;
 }

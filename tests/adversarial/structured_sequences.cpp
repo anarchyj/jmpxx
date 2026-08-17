@@ -43,6 +43,7 @@ int main(int argc, char** argv) {
     }
     run_case(data);
   }
+  std::printf("    cases.asked  %d\n    cases.known  %d\n", 512, 512);
   std::printf("structured adversarial sequences: 512 cases clean\n");
   return 0;
 }

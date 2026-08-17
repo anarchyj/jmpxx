@@ -17,8 +17,14 @@ compile_asm() {
     -DJMPXX_HARDENING_MODE="$mode" -I "$INC" "$src" -o "$asm"
 }
 
+# Every expectation below is one case. The count is reported beside the number of
+# cases this gate knows of, so a gate that quietly stops checking something is visible
+# without being red.
+cases=0
+
 expect_ud2() {
   local asm="$1"; local label="$2"
+  cases=$((cases+1))
   if ! grep -qE '(^|[[:space:]])ud2($|[[:space:]])' "$asm"; then
     echo "$label: expected a fail-fast trap in generated code"
     exit 1
@@ -27,6 +33,7 @@ expect_ud2() {
 
 expect_no_ud2() {
   local asm="$1"; local label="$2"
+  cases=$((cases+1))
   if grep -qE '(^|[[:space:]])ud2($|[[:space:]])' "$asm"; then
     echo "$label: unexpected fail-fast trap in generated code"
     exit 1
@@ -35,6 +42,7 @@ expect_no_ud2() {
 
 expect_fails() {
   local exe="$1"; local label="$2"
+  cases=$((cases+1))
   set +e
   "$exe" >/dev/null 2>&1
   local rc=$?
@@ -47,6 +55,7 @@ expect_fails() {
 
 expect_compile_fails() {
   local label="$1"
+  cases=$((cases+1))
   shift
   set +e
   "$@" >/dev/null 2>"$work/${label}.err"
@@ -96,4 +105,12 @@ if [[ "$MODE" == "inject" ]]; then
   expect_no_ud2 "$work/fast_fast.s" "injected bad expectation for fast mode"
 fi
 
+known=10
+[[ "$MODE" == "inject" ]] && known=11
+echo "    cases.asked  $cases"
+echo "    cases.known  $known"
+if [[ "$cases" -ne "$known" ]]; then
+  echo "hardening: ran $cases expectations, the gate knows of $known"
+  exit 1
+fi
 echo "hardening modes clean: none/fast/extensive fire and vanish as expected"

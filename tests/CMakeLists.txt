@@ -539,6 +539,18 @@ if(JMPXX_PYTHON3)
   add_test(NAME acceptance.self_test COMMAND
     ${JMPXX_PYTHON3} ${CMAKE_SOURCE_DIR}/verify/acceptance.py --self-test)
 
+  # The gate set's case accounting, checked without running the suite: every gate has a
+  # recorded case count or a named reason it cannot carry one, and every gate that
+  # declares it needs a quiet machine is registered to run alone. The sweep itself does
+  # the other half, holding each gate's reported count against the recorded one. The
+  # inverted case drops a recorded count, which must fail.
+  add_test(NAME gate.accounting COMMAND ${JMPXX_PYTHON3}
+    ${CMAKE_SOURCE_DIR}/verify/acceptance.py --check-accounting
+    --build-dir ${CMAKE_BINARY_DIR})
+  add_test(NAME gate.accounting.teeth COMMAND ${JMPXX_PYTHON3}
+    ${CMAKE_SOURCE_DIR}/verify/acceptance.py --check-accounting
+    --build-dir ${CMAKE_BINARY_DIR} --inject)
+  set_tests_properties(gate.accounting.teeth PROPERTIES WILL_FAIL TRUE)
 endif()
 
 # Compile-cost gate: the template-instantiation count, the deterministic compile-cost

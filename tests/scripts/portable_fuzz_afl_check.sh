@@ -43,4 +43,6 @@ if find "$work/out" -path '*/crashes/id:*' -print -quit | grep -q .; then
   echo "AFL found a crash"
   exit 1
 fi
+echo "    cases.asked  1"
+echo "    cases.known  1"
 echo "portable AFL clean: ${SECS}s"

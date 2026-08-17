@@ -141,6 +141,9 @@ int main(int argc, char** argv) {
     ++sequences;
   }
 
+  // What this run compared, beside what it is built to compare. A driver that
+  // quietly stops exercising the bridge still passes every comparison it did make.
+  std::printf("    cases.asked  %lld\n    cases.known  %d\n", sequences, 4096);
   std::printf("differential oracle: sequences=%lld bridge_checks=%lld expected=%d\n",
               sequences, bridge_checks, JMPXX_INTEROP_HAS_EXPECTED);
   return 0;

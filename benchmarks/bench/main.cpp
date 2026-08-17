@@ -254,6 +254,10 @@ std::pair<Dist, Dist> measure_pair(chain_fn fa, chain_fn fb, int depth,
 // so the gate's own negative path must fail.
 int cmd_gate(Fmt fmt, int epochs, long long target_ns, std::size_t pool, double bound, bool slow) {
   Report r(fmt, "bench.gate");
+  // Two kernels are co-measured on the happy path: the one under test and the
+  // hand-written baseline it is bounded against.
+  r.num("cases.asked", 2);
+  r.num("cases.known", 2);
   std::vector<int> in = make_inputs(0.0, pool);  // happy path
   chain_fn jx = slow ? jmpxx_slow_chain : jmpxx_chain;
   auto [a, b] = measure_pair(jx, handwritten_chain, jxb_depth, in, epochs, target_ns);

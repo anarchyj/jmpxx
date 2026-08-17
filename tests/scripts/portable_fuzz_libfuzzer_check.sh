@@ -24,4 +24,6 @@ bin="$work/harness"
 # when the suite runs from there, so the injected run would leave a file behind.
 "$bin" "$work/corpus" -max_total_time="$SECS" -error_exitcode=99 \
   -artifact_prefix="$work/" -timeout=10 -rss_limit_mb=2048
+echo "    cases.asked  1"
+echo "    cases.known  1"
 echo "portable libFuzzer clean: ${SECS}s"

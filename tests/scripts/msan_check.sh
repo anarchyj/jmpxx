@@ -31,4 +31,6 @@ bin="$work/$(basename "$SRC").msan"
   -Wl,-rpath,"$libdir" -Wl,-rpath,"$abidir" \
   -DJMPXX_DIAGNOSTICS_ENABLED=1 "$SRC" -lc++abi -pthread -o "$bin"
 MSAN_OPTIONS=halt_on_error=1:exit_code=99 "$bin"
+echo "    cases.asked  1"
+echo "    cases.known  1"
 echo "memory sanitizer clean for $(basename "$SRC")"

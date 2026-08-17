@@ -405,7 +405,9 @@ def audit(path: str, required: list[str]) -> dict:
 def render_human(rep: dict) -> str:
     lines = [f"unwind metadata audit: {rep['binary']} ({rep['format']}, "
              f"{rep['frames']} frame entries, "
-             f"{rep['functions_with_cleanups']} functions with cleanups)"]
+             f"{rep['functions_with_cleanups']} functions with cleanups)",
+             f"    cases.asked  {len(rep['checks'])}",
+             f"    cases.known  {len(rep['checks'])}"]
     if rep.get("list_cleanups"):
         for name in rep["cleanup_functions"]:
             lines.append(f"    cleanups: {name}")

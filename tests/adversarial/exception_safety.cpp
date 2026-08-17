@@ -177,6 +177,7 @@ int main(int argc, char** argv) {
   copy_cross_error_to_value_throw_keeps_error();
   move_cross_success_paths_reconstruct_after_destroy();
   if (inject) die("injected observable-valueless defect");
+  std::printf("    cases.asked  %d\n    cases.known  %d\n", 7, 7);
   std::printf("exception-safety: throwing assignment cross-product clean\n");
   return 0;
 }

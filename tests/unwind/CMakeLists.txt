@@ -192,20 +192,38 @@ add_test(NAME unwind.stress.teeth COMMAND jmpxx-verify unwind-stress
 set_tests_properties(unwind.stress PROPERTIES TIMEOUT 600)
 set_tests_properties(unwind.stress.teeth PROPERTIES WILL_FAIL TRUE TIMEOUT 300)
 
+# This measurement and the sad-path distribution below both need the machine to
+# themselves: run beside the rest of the suite they report its load, not the arm. They
+# declare that condition in their output and the sweep honours it here.
 add_test(NAME unwind.scale COMMAND jmpxx-verify unwind-scale --max-threads 8 --iters 3000)
 add_test(NAME unwind.scale.teeth COMMAND jmpxx-verify unwind-scale
   --max-threads 8 --iters 2000 --inject-serialization)
-set_tests_properties(unwind.scale PROPERTIES TIMEOUT 600)
-set_tests_properties(unwind.scale.teeth PROPERTIES WILL_FAIL TRUE TIMEOUT 300)
+set_tests_properties(unwind.scale PROPERTIES RUN_SERIAL TRUE TIMEOUT 600)
+set_tests_properties(unwind.scale.teeth PROPERTIES RUN_SERIAL TRUE WILL_FAIL TRUE TIMEOUT 300)
 
 # Unwind sad-path benchmark and the destructor-count surface, driven through the harness.
 # The committed run asserts the forced-unwind sad path stays within its determinism bound
 # and reports the distribution beside a C++ throw at
 # the same depth. The inverted run injects a non-deterministic cleanup, which drives the
 # ratio past the bound and must fail the same gate's negative path.
+# The body-frame defence, and the falsification attempt it has never survived being
+# given. The ordinary build must destroy every object the escape's body constructed; the
+# attempt forces the trampoline inline, which is the shape the defence prevents, and
+# records that it still balances. That is why this gate is recorded as an unfalsifiable
+# defence rather than carrying an inverted case, and the attempt is re-run every sweep
+# so a compiler that starts breaking it is noticed.
+if(UNIX AND NOT MSVC)
+  add_test(NAME unwind.body_frame COMMAND bash
+    ${CMAKE_SOURCE_DIR}/tests/scripts/unwind_body_frame_check.sh
+    ${CMAKE_CXX_COMPILER} ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/unwind_exec.cpp
+    ${CMAKE_BINARY_DIR}/unwind_body_frame)
+endif()
+
 add_test(NAME unwind.benchmark COMMAND jmpxx-verify unwind --iters 40000)
+set_tests_properties(unwind.benchmark PROPERTIES RUN_SERIAL TRUE)
 add_test(NAME unwind.benchmark.teeth COMMAND jmpxx-verify unwind --inject-jitter --iters 20000)
-set_tests_properties(unwind.benchmark.teeth PROPERTIES WILL_FAIL TRUE TIMEOUT 180)
+set_tests_properties(unwind.benchmark.teeth PROPERTIES RUN_SERIAL TRUE WILL_FAIL TRUE TIMEOUT 180)
 
 # Payload-boundary fuzz: any value an eject carries, including one derived from
 # adversarial input, must cross to the landing as a defined failure rather than

@@ -52,4 +52,6 @@ if [[ "$count" -ne "$expected" ]]; then
   exit 1
 fi
 cat "$work"/*.out
+echo "    cases.asked  $count"
+echo "    cases.known  $expected"
 echo "configuration matrix clean: $count cells"

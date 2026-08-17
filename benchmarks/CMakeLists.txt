@@ -96,18 +96,34 @@ if(JMPXX_BENCH_TESTS)
   set_tests_properties(bench.run_smoke PROPERTIES TIMEOUT 180)
 
   add_test(NAME bench.gate COMMAND jmpxx-bench gate --epochs 40 --bound 1.6)
-  set_tests_properties(bench.gate PROPERTIES TIMEOUT 120)
+  set_tests_properties(bench.gate PROPERTIES RUN_SERIAL TRUE TIMEOUT 120)
   add_test(NAME bench.gate.teeth COMMAND jmpxx-bench gate --epochs 40 --bound 1.6 --slow)
-  set_tests_properties(bench.gate.teeth PROPERTIES WILL_FAIL TRUE TIMEOUT 120)
+  set_tests_properties(bench.gate.teeth PROPERTIES RUN_SERIAL TRUE WILL_FAIL TRUE TIMEOUT 120)
 
   # The deterministic instruction-count gate, when valgrind is available. The script counts
   # jmpxx and hand-written instructions under callgrind and bounds their ratio; an inverted run
   # inside the script checks that the slowed kernel trips it.
   find_program(JXB_VALGRIND valgrind)
   if(JXB_VALGRIND AND UNIX)
+    # The run also records every mechanism the comparison tabulates into a report, and
+    # the documented-value gate reads that report rather than a second copy of the
+    # numbers. That gate therefore runs after this one, which the fixture declares.
     add_test(NAME bench.callgrind_ir COMMAND bash
       ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scripts/callgrind_ir_gate.sh
-      $<TARGET_FILE:jmpxx-bench> ${JXB_VALGRIND})
-    set_tests_properties(bench.callgrind_ir PROPERTIES TIMEOUT 300)
+      $<TARGET_FILE:jmpxx-bench> ${JXB_VALGRIND} 200000 110
+      ${CMAKE_BINARY_DIR}/callgrind-ir.json)
+    set_tests_properties(bench.callgrind_ir PROPERTIES TIMEOUT 300
+      FIXTURES_SETUP jmpxx_callgrind_ir)
+    find_program(JXB_PYTHON3 python3)
+    if(JXB_PYTHON3)
+      add_test(NAME doc_claim.bench COMMAND ${JXB_PYTHON3}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scripts/doc_claim_check.py
+        --source-root ${CMAKE_SOURCE_DIR} --build-dir ${CMAKE_BINARY_DIR}
+        --values ${CMAKE_SOURCE_DIR}/tests/claims/documented-values.json
+        --only-source report
+        --report ${CMAKE_BINARY_DIR}/documented-values-bench.json)
+      set_tests_properties(doc_claim.bench PROPERTIES
+        FIXTURES_REQUIRED jmpxx_callgrind_ir TIMEOUT 120)
+    endif()
   endif()
 endif()

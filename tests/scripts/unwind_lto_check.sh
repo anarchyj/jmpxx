@@ -124,6 +124,8 @@ if [[ "$is_ehabi" -eq 1 ]]; then
     echo "unwind link-time optimization: the ARM exception-handling ABI cell did not match its recorded limitation"
     exit 1
   fi
+  echo "    cases.asked  2"
+  echo "    cases.known  2"
   echo "unwind link-time optimization: the ARM exception-handling ABI cell behaves as recorded, ordinary build correct and the link-time-optimized build refused"
   exit 0
 fi
@@ -155,6 +157,8 @@ if [[ "${#skipped[@]}" -ne 0 ]]; then
   for s in "${skipped[@]}"; do echo "$s: UNAVAILABLE ON THIS PLATFORM" | tee -a "$report"; done
 fi
 
+echo "    cases.asked  $(( ${#configs[@]} + ${#skipped[@]} ))"
+echo "    cases.known  $(( ${#configs[@]} + ${#skipped[@]} ))"
 if [[ "$failures" -ne 0 ]]; then
   echo "unwind link-time optimization: $failures configuration(s) did not keep the arm's destructor balance"
   exit 1

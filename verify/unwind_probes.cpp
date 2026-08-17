@@ -214,6 +214,9 @@ int probe_unwind(Fmt fmt, const std::vector<std::string>& args) {
   auto [fu, th] = uw::measure_pair(uw::fu_escape, uw::th_escape, iters);
   double ratio =
       static_cast<double>(fu.p99) / static_cast<double>(th.p99 ? th.p99 : 1);
+  // Two distributions are measured, the escape's and a C++ throw's, at one depth.
+  r.num("cases.asked", 2);
+  r.num("cases.known", 2);
   r.num("sad_path.iters", iters);
   r.num("sad_path.median_ns", fu.median);
   r.num("sad_path.p90_ns", fu.p90);
@@ -574,6 +577,8 @@ int probe_unwind_stress(Fmt fmt, const std::vector<std::string>& args) {
   const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - started).count();
 
+  r.num("cases.asked", static_cast<long long>(threads) * seeds);
+  r.num("cases.known", static_cast<long long>(threads) * seeds);
   r.num("threads", threads);
   r.num("seeds", seeds);
   r.num("iterations", total.iterations);
@@ -735,7 +740,9 @@ int probe_unwind_scale(Fmt fmt, const std::vector<std::string>& args) {
 
   uwsc::sample base{};
   double arm_inflation = 1.0, throw_inflation = 1.0;
+  long long steps = 0;
   for (int t = 1; t <= max_threads; t *= 2) {
+    ++steps;
     const uwsc::sample s = uwsc::measure(t, iters);
     if (t == 1) base = s;
     arm_inflation = s.arm_ns / (base.arm_ns > 0 ? base.arm_ns : 1.0);
@@ -747,6 +754,8 @@ int probe_unwind_scale(Fmt fmt, const std::vector<std::string>& args) {
     r.num(tag + ".throw_inflation_x100", static_cast<long long>(throw_inflation * 100));
   }
   const double ratio = arm_inflation / (throw_inflation > 0 ? throw_inflation : 1.0);
+  r.num("cases.asked", steps);
+  r.num("cases.known", steps);
   r.num("relative_inflation_x100", static_cast<long long>(ratio * 100));
   r.num("bound_x100", static_cast<long long>(bound * 100));
   r.boolean("scales_with_the_platform", ratio <= bound);

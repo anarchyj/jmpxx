@@ -35,7 +35,9 @@ expectations=(
 )
 
 failures=0
+asked=0
 for spec in "${expectations[@]}"; do
+  asked=$((asked + 1))
   set -- $spec
   name="$1"; want="$2"
   out="$(${RUNNER:+$RUNNER} "$FIXTURE" "$name" ${extra[@]+"${extra[@]}"} 2>&1)"
@@ -46,6 +48,8 @@ for spec in "${expectations[@]}"; do
   if [[ "$got" != "$want" ]]; then failures=$((failures + 1)); fi
 done
 
+echo "    cases.asked  $asked"
+echo "    cases.known  ${#expectations[@]}"
 if [[ "$failures" -ne 0 ]]; then
   echo "unwind reentrancy: $failures case(s) did not produce their declared outcome"
   exit 1

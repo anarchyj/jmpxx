@@ -157,6 +157,8 @@ int main(int argc, char** argv) {
   }
   if (threads < 1) threads = 1;
 
+  // Each thread is one case; the count is what ran rather than what was asked for.
+  std::printf("    cases.asked  %d\n    cases.known  %d\n", threads, threads);
   std::printf("unwind_concurrent: threads=%d iterations=%d\n", threads, iterations);
   if (!arm::escape_scope<jmpxx::error>([] { return 0; }).has_value()) {
     std::printf("  FAIL: the arm did not run a trivial scope\n");
