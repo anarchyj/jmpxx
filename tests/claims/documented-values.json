@@ -1,0 +1,314 @@
+{
+ "schema": 1,
+ "note": "Every value the verification surface reports that the public documentation also states. Each entry names the source that produces the value, the wording the documentation states it in, and the documents that must state it. tests/scripts/doc_claim_check.py re-derives each one and fails when a document no longer says what the harness measures. The covered floors below are what the gate must reach; lowering one to pass is the failure the floor exists to catch.",
+ "covered_floor_verify": 17,
+ "covered_floor_report": 3,
+ "values": [
+  {
+   "id": "version.string",
+   "source": "verify:platform",
+   "key": "version",
+   "forms": [
+    "{value}"
+   ],
+   "documents": [
+    "CMakeLists.txt",
+    "conanfile.py",
+    "packaging/vcpkg/vcpkg.json",
+    "CITATION.cff",
+    "CHANGELOG.md",
+    "docs/reference/packaging.md"
+   ],
+   "note": "the version the compiled header carries. Every packaging channel states a version and the header states one; they are the same release or a consumer's version check answers for the wrong release."
+  },
+  {
+   "id": "size.error",
+   "source": "verify:size",
+   "key": "int,int.sizeof",
+   "forms": [
+    "{words} bytes"
+   ],
+   "documents": [
+    "docs/reference/abi.md"
+   ],
+   "note": "jmpxx::error is two ints, so result<int,int> and the error share the eight-byte figure the ABI page states."
+  },
+  {
+   "id": "size.result_int_error",
+   "source": "verify:size",
+   "key": "int,error.sizeof",
+   "forms": [
+    "is {words} bytes",
+    "{words} for result<int, error>",
+    "{words}-byte value-or-error"
+   ],
+   "documents": [
+    "docs/reference/abi.md",
+    "docs/comparison.md"
+   ],
+   "note": "the transport size for a trivial value under the minimal policy"
+  },
+  {
+   "id": "size.budget_result_int_error",
+   "source": "verify:size",
+   "key": "int,error.budget",
+   "forms": [
+    "{words} bytes"
+   ],
+   "documents": [
+    "docs/reference/abi.md"
+   ],
+   "note": "the hand-written union-plus-flag the transport is budgeted against"
+  },
+  {
+   "id": "diagnostics.max_chain",
+   "source": "verify:diagnostics",
+   "key": "max_chain",
+   "forms": [
+    "both {digits}"
+   ],
+   "documents": [
+    "docs/reference/diagnostics.md"
+   ],
+   "note": "hops recorded per failure before the chain is marked truncated"
+  },
+  {
+   "id": "diagnostics.max_inflight",
+   "source": "verify:diagnostics",
+   "key": "max_inflight",
+   "forms": [
+    "both {digits}"
+   ],
+   "documents": [
+    "docs/reference/diagnostics.md"
+   ],
+   "note": "failures a thread may hold whose landing scope has not released them"
+  },
+  {
+   "id": "reflect.enum_range_min",
+   "source": "verify:reflect",
+   "key": "enum_range.min",
+   "forms": [
+    "default {digits} to"
+   ],
+   "documents": [
+    "docs/reference/reflect.md"
+   ],
+   "note": "the low end of the fallback's scanned enumerator range"
+  },
+  {
+   "id": "reflect.enum_range_max",
+   "source": "verify:reflect",
+   "key": "enum_range.max",
+   "forms": [
+    "to {digits}."
+   ],
+   "documents": [
+    "docs/reference/reflect.md"
+   ],
+   "note": "the high end of the fallback's scanned enumerator range"
+  },
+  {
+   "id": "propagation.try_cost",
+   "source": "verify:levels",
+   "key": "try.cost",
+   "forms": [
+    "{value}"
+   ],
+   "documents": [
+    "docs/reference/propagation-levels.md"
+   ],
+   "note": "the checked propagation level's declared cost"
+  },
+  {
+   "id": "propagation.try_reach",
+   "source": "verify:levels",
+   "key": "try.reach",
+   "forms": [
+    "{value}"
+   ],
+   "documents": [
+    "docs/reference/propagation-levels.md"
+   ],
+   "note": "the checked propagation level's declared reach"
+  },
+  {
+   "id": "propagation.scope_cost",
+   "source": "verify:levels",
+   "key": "scope.cost",
+   "forms": [
+    "{value}"
+   ],
+   "documents": [
+    "docs/reference/propagation-levels.md"
+   ],
+   "note": "the landing scope's declared cost"
+  },
+  {
+   "id": "propagation.scope_reach",
+   "source": "verify:levels",
+   "key": "scope.reach",
+   "forms": [
+    "{value}"
+   ],
+   "documents": [
+    "docs/reference/propagation-levels.md"
+   ],
+   "note": "the landing scope's declared reach"
+  },
+  {
+   "id": "propagation.frames",
+   "source": "verify:destructors",
+   "key": "frames",
+   "forms": [
+    "{words}-frame",
+    "{digits} frames"
+   ],
+   "documents": [
+    "docs/reference/propagation-levels.md",
+    "docs/comparison.md"
+   ],
+   "note": "the chain depth the destructor-count probe and the comparison both use"
+  },
+  {
+   "id": "unwind.escape_frames",
+   "source": "verify:unwind",
+   "key": "escape.frames",
+   "forms": [
+    "{words} frames"
+   ],
+   "documents": [
+    "docs/design/unwind-arm.md"
+   ],
+   "note": "the depth the unwind-execution evidence is stated at"
+  },
+  {
+   "id": "unwind.destructors_run",
+   "source": "verify:unwind",
+   "key": "escape.destructed",
+   "forms": [
+    "{words} frames runs every destructor"
+   ],
+   "documents": [
+    "docs/design/unwind-arm.md"
+   ],
+   "note": "every automatic object on the escape path is destroyed once, so the count equals the frame count"
+  },
+  {
+   "id": "compile_cost.fixture_instantiations",
+   "source": "verify-args:compile-cost --cxx clang++ --fixture {source_root}/benchmarks/fixtures/ship_jmpxx.cpp --baseline {source_root}/benchmarks/fixtures/ship_handwritten.cpp --runs 1",
+   "key": "fixture.instantiations",
+   "documented": 170,
+   "tolerance_percent": 5,
+   "forms": [
+    "about {digits} templates"
+   ],
+   "documents": [
+    "docs/comparison.md"
+   ],
+   "note": "the translation cost the comparison quotes. The figure moves slightly with the standard library the fixture instantiates against, so the documentation rounds and the gate bounds."
+  },
+  {
+   "id": "compile_cost.baseline_instantiations",
+   "source": "verify-args:compile-cost --cxx clang++ --fixture {source_root}/benchmarks/fixtures/ship_jmpxx.cpp --baseline {source_root}/benchmarks/fixtures/ship_handwritten.cpp --runs 1",
+   "key": "baseline.instantiations",
+   "forms": [
+    "{words} for the hand-written baseline"
+   ],
+   "documents": [
+    "docs/comparison.md"
+   ],
+   "note": "what the same work costs to translate without the transport"
+  },
+  {
+   "id": "compile_cost.budget",
+   "source": "file:tests/CMakeLists.txt::--max-instantiations (\\d+)",
+   "key": "unused",
+   "forms": [
+    "{value}"
+   ],
+   "documents": [
+    "docs/reference/verification.md"
+   ],
+   "note": "the instantiation budget the compile-cost gate enforces, quoted in the reproduction commands"
+  },
+  {
+   "id": "coverage.region_floor",
+   "source": "tool:python3 {source_root}/tests/scripts/coverage_floor.py --print-config",
+   "key": "floors.region_percent",
+   "forms": [
+    "{digits}% region"
+   ],
+   "documents": [
+    "docs/reference/verification.md"
+   ],
+   "note": "the region floor the adversarial coverage gate enforces"
+  },
+  {
+   "id": "coverage.branch_floor",
+   "source": "tool:python3 {source_root}/tests/scripts/coverage_floor.py --print-config",
+   "key": "floors.branch_percent",
+   "forms": [
+    "{digits}% branch"
+   ],
+   "documents": [
+    "docs/reference/verification.md"
+   ],
+   "note": "the branch floor the adversarial coverage gate enforces"
+  },
+  {
+   "id": "mutation.kill_rate_floor",
+   "source": "tool:python3 {source_root}/tests/scripts/mutation_campaign.py --print-config",
+   "key": "floor",
+   "scale": 100,
+   "forms": [
+    "at least {digits}% of representative source mutants"
+   ],
+   "documents": [
+    "docs/reference/verification.md"
+   ],
+   "note": "the kill-rate floor the mutation campaign enforces"
+  },
+  {
+   "id": "callgrind.jmpxx_happy",
+   "source": "report:callgrind-ir.json",
+   "key": "per_call.jmpxx.happy",
+   "forms": [
+    "jmpxx chain executes {digits} instructions",
+    "jmpxx {digits}",
+    "jmpxx's {digits}"
+   ],
+   "documents": [
+    "docs/comparison.md"
+   ],
+   "note": "instructions per happy-path call, counted from a simulated processor so the figure is the same on every machine"
+  },
+  {
+   "id": "callgrind.handwritten_happy",
+   "source": "report:callgrind-ir.json",
+   "key": "per_call.handwritten.happy",
+   "forms": [
+    "hand-written chain executes {digits}",
+    "hand-written {digits}"
+   ],
+   "documents": [
+    "docs/comparison.md"
+   ],
+   "note": "the same count for the branch jmpxx replaces"
+  },
+  {
+   "id": "callgrind.exceptions_failure",
+   "source": "report:callgrind-ir.json",
+   "key": "per_call.exceptions.failure",
+   "documented": 29000,
+   "tolerance_percent": 10,
+   "forms": [
+    "about {grouped} instructions per throw"
+   ],
+   "documents": [
+    "docs/comparison.md"
+   ],
+   "note": "what a throw costs at the same depth. This one is the platform unwinder's cost rather than the library's, so it moves with the C++ runtime and the documentation states the figure it rounds to."
+  }
+ ]
+}

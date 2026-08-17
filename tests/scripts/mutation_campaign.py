@@ -345,15 +345,28 @@ def main() -> int:
     parser.add_argument("--cxx", required=True)
     parser.add_argument("--source-root", required=True)
     parser.add_argument("--build-root", required=True)
+    parser.add_argument("--print-config", action="store_true",
+                        help="print the committed kill-rate floor as JSON and exit")
     parser.add_argument("--floor", type=float, default=0.90)
     parser.add_argument("--mode", choices=("clean", "inject"), default="clean")
     parser.add_argument("--report")
+    # The committed kill-rate floor, readable without a build, so the documentation
+    # that states it is checked against this gate's own configuration.
+    if "--print-config" in sys.argv:
+        defaults = parser.parse_args(["--cxx", "", "--source-root", "",
+                                      "--build-root", ""])
+        print(json.dumps({"floor": defaults.floor}))
+        return 0
     args = parser.parse_args()
 
     report = campaign(args)
     text = json.dumps(report, indent=2, sort_keys=True)
     if args.report:
         Path(args.report).write_text(text + "\n")
+    # What the campaign mutated, against the population it holds. A campaign that
+    # quietly stops mutating part of the surface still kills everything it tried.
+    print(f"    cases.asked  {len(report.get('mutants', []))}")
+    print(f"    cases.known  {len(MUTANTS)}")
     print(text)
     if report.get("ok"):
         print("mutation campaign clean")

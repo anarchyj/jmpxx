@@ -319,10 +319,25 @@ def main() -> int:
     parser.add_argument("--source-root", required=True)
     parser.add_argument("--build-root", required=True)
     parser.add_argument("--mode", choices=("clean", "inject"), default="clean")
+    parser.add_argument("--print-config", action="store_true",
+                        help="print the committed floors as JSON and exit, so the "
+                             "documentation is checked against the floor this gate "
+                             "enforces rather than against a copy of it")
     parser.add_argument("--region-floor", type=float, default=82.0)
     parser.add_argument("--branch-floor", type=float, default=78.0)
     parser.add_argument("--critical-branch-floor", type=float, default=50.0)
     parser.add_argument("--report")
+    # The committed floors are readable without a build, so the documentation that
+    # states them is checked against this gate's own configuration rather than
+    # against a second copy of the numbers.
+    if "--print-config" in sys.argv:
+        defaults = parser.parse_args(["--cxx", "", "--profdata", "", "--cov", "",
+                                      "--source-root", "", "--build-root", ""])
+        print(json.dumps({"floors": {
+            "region_percent": defaults.region_floor,
+            "branch_percent": defaults.branch_floor,
+            "critical_branch_percent": defaults.critical_branch_floor}}))
+        return 0
     args = parser.parse_args()
 
     try:
@@ -339,6 +354,9 @@ def main() -> int:
     text = json.dumps(report, indent=2, sort_keys=True)
     if args.report:
         Path(args.report).write_text(text + "\n")
+    # The headers this run actually measured, against the ones it tracks.
+    print(f"    cases.asked  {len(report.get('tracked_files', []))}")
+    print(f"    cases.known  {len(TRACKED_FILES)}")
     print(text)
     if report.get("ok"):
         print("adversarial coverage floor clean")

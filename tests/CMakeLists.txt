@@ -608,21 +608,25 @@ if(UNIX AND JMPXX_CLANGXX)
     ${CMAKE_SOURCE_DIR}/tests/property/property_tests.cpp)
 endif()
 
-# Doc-claim tier: a documented cost the harness reports must appear verbatim in the
-# reference, so a documented value cannot drift from the measured one. The inverted
-# case points the same check at a document that states a cost the harness does not
-# report, which must fail; the other documented cost, size, codegen, perf, and layout
-# claims are each backed by their own gate above, every one checked against a
-# known-bad input.
-if(UNIX)
-  add_test(NAME doc_claim COMMAND bash
-    ${CMAKE_SOURCE_DIR}/tests/scripts/doc_claim_check.sh
-    $<TARGET_FILE:jmpxx-verify> ${CMAKE_SOURCE_DIR}/docs/reference/propagation-levels.md)
-  add_test(NAME doc_claim.teeth COMMAND bash
-    ${CMAKE_SOURCE_DIR}/tests/scripts/doc_claim_check.sh
-    $<TARGET_FILE:jmpxx-verify> ${CMAKE_SOURCE_DIR}/tests/doc_claim/known_bad/propagation_levels.bad.md)
+# Documented-value currency: every value the harness reports that the documentation
+# also states is re-derived and held against what the documentation says, so a
+# measurement cannot move without the prose moving. The committed value map names each
+# value's source and the wording it appears in. The inverted case points the same check
+# at a document stating a cost the harness does not report, which must fail.
+if(UNIX AND JMPXX_PYTHON3)
+  add_test(NAME doc_claim COMMAND ${JMPXX_PYTHON3}
+    ${CMAKE_SOURCE_DIR}/tests/scripts/doc_claim_check.py
+    --source-root ${CMAKE_SOURCE_DIR} --build-dir ${CMAKE_BINARY_DIR}
+    --values ${CMAKE_SOURCE_DIR}/tests/claims/documented-values.json
+    --report ${CMAKE_BINARY_DIR}/documented-values.json)
+  add_test(NAME doc_claim.teeth COMMAND ${JMPXX_PYTHON3}
+    ${CMAKE_SOURCE_DIR}/tests/scripts/doc_claim_check.py
+    --source-root ${CMAKE_SOURCE_DIR} --build-dir ${CMAKE_BINARY_DIR}
+    --values ${CMAKE_SOURCE_DIR}/tests/claims/documented-values.json
+    --overlay docs/reference/propagation-levels.md=${CMAKE_SOURCE_DIR}/tests/doc_claim/known_bad/propagation_levels.bad.md)
   set_tests_properties(doc_claim.teeth PROPERTIES WILL_FAIL TRUE)
 endif()
+
 # The experimental unwind arm's tiers live beside the arm's fixtures. They are the
 # largest single group here and the only one whose subject is platform machinery rather
 # than the portable surface, so they are registered from their own file.
