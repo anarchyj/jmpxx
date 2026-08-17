@@ -135,6 +135,13 @@ endforeach()
 add_test(NAME probe.alloc.teeth COMMAND jmpxx-verify alloc --inject-alloc)
 set_tests_properties(probe.alloc.teeth PROPERTIES WILL_FAIL TRUE)
 
+# The size gate's inverted self-test: a transport widened by one word past the
+# value-or-error union must exceed the hand-written budget and fail. Without it the
+# gate could pass because every measured type happens to fit rather than because the
+# budget is enforced, which is what the reference says the gate catches.
+add_test(NAME probe.size.teeth COMMAND jmpxx-verify size --inject-oversize)
+set_tests_properties(probe.size.teeth PROPERTIES WILL_FAIL TRUE)
+
 # Reflection forward layer, hand-written fallback path. Building the harness and this
 # tier on a C++20 toolchain exercises the fallback that derives enum names, the failure
 # set, and the enum-keyed error domain by parsing the compiler signature; the reflection
@@ -430,6 +437,7 @@ if(JMPXX_GXX13 AND CMAKE_SYSTEM_NAME STREQUAL "Linux"
    AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
   set(JMPXX_CODEGEN_HOST ON)
 endif()
+set(BF ${CMAKE_SOURCE_DIR}/benchmarks/fixtures)
 if(JMPXX_CODEGEN_HOST)
   set(FX ${CMAKE_SOURCE_DIR}/tests/asm_golden/fixtures)
   set(GD ${CMAKE_SOURCE_DIR}/goldens/x86_64)
@@ -454,6 +462,19 @@ if(JMPXX_CODEGEN_HOST)
     --symbol jx_spilly --golden ${CMAKE_BINARY_DIR}/spilly.s --update --forbid-spill)
   set_tests_properties(codegen.teeth.spill PROPERTIES WILL_FAIL TRUE)
 
+  # The headline claim, checked directly: the shipped chain and the same chain written
+  # by hand compile to the same instructions. The size gate proves the two objects are
+  # the same size and the callgrind gate proves they execute the same count; neither
+  # compares the generated code, which is what "identical to the instruction" says. The
+  # inverted case is the bloated fixture, whose code differs and must fail.
+  add_test(NAME codegen.identity COMMAND jmpxx-verify release-diff
+    --fixture ${BF}/ship_jmpxx.cpp --fixture-b ${BF}/ship_handwritten.cpp
+    --symbol-a sized_chain)
+  add_test(NAME codegen.identity.teeth COMMAND jmpxx-verify release-diff
+    --fixture ${BF}/known_bad/ship_bloated.cpp --fixture-b ${BF}/ship_handwritten.cpp
+    --symbol-a sized_chain)
+  set_tests_properties(codegen.identity.teeth PROPERTIES WILL_FAIL TRUE)
+
   # Release-diff: the dual-personality release check. The rich and minimal policies
   # generate identical code in a release build. The inverted case uses a fixture whose
   # diagnostic call survives into release, by code or by a leaked source string, and
@@ -472,7 +493,6 @@ endif()
 # section size, so the delta is zero; the inverted case is a bloated fixture whose
 # object is larger and must fail the zero budget. Deterministic for a fixed compiler,
 # so it runs on the codegen host where g++-13 is pinned.
-set(BF ${CMAKE_SOURCE_DIR}/benchmarks/fixtures)
 if(JMPXX_CODEGEN_HOST)
   add_test(NAME size_delta COMMAND jmpxx-verify size-delta
     --fixture ${BF}/ship_jmpxx.cpp --baseline ${BF}/ship_handwritten.cpp
@@ -518,6 +538,7 @@ endif()
 if(JMPXX_PYTHON3)
   add_test(NAME acceptance.self_test COMMAND
     ${JMPXX_PYTHON3} ${CMAKE_SOURCE_DIR}/verify/acceptance.py --self-test)
+
 endif()
 
 # Compile-cost gate: the template-instantiation count, the deterministic compile-cost
@@ -568,7 +589,6 @@ if(UNIX)
     $<TARGET_FILE:jmpxx-verify> ${CMAKE_SOURCE_DIR}/tests/doc_claim/known_bad/propagation_levels.bad.md)
   set_tests_properties(doc_claim.teeth PROPERTIES WILL_FAIL TRUE)
 endif()
-
 # The experimental unwind arm's tiers live beside the arm's fixtures. They are the
 # largest single group here and the only one whose subject is platform machinery rather
 # than the portable surface, so they are registered from their own file.
@@ -581,7 +601,8 @@ add_subdirectory(unwind)
 # other tier still parallelizes. Continuous integration runs the suite serially, where
 # the race cannot arise; this keeps a parallel local run correct too.
 foreach(t codegen.value_return codegen.propagate_eight codegen.try_branch
-          codegen.teeth.golden codegen.teeth.spill release_diff release_diff.teeth
+          codegen.teeth.golden codegen.teeth.spill codegen.identity codegen.identity.teeth
+          release_diff release_diff.teeth
           size_delta size_delta.teeth compile_cost compile_cost.teeth
           abi_layout abi_layout.teeth)
   if(TEST ${t})

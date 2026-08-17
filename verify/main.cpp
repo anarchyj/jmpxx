@@ -118,10 +118,15 @@ struct hand_written {
   bool ok;
 };
 
-int probe_size(Fmt fmt) {
+int probe_size(Fmt fmt, const std::vector<std::string>& args) {
+  bool inject = false;
+  for (const std::string& a : args)
+    if (a == "--inject-oversize") inject = true;
   Report r(fmt, "size");
+  long long asked = 0;
   auto check = [&](const char* name, std::size_t got, std::size_t budget,
                    bool triv_inputs, bool triv_result) {
+    ++asked;
     r.num(std::string(name) + ".sizeof", static_cast<long long>(got));
     r.num(std::string(name) + ".budget", static_cast<long long>(budget));
     if (got > budget)
@@ -145,6 +150,25 @@ int probe_size(Fmt fmt) {
   SIZE_CHECK(char, char);
   SIZE_CHECK(void, error);
 #undef SIZE_CHECK
+
+  // The gate's inverted self-test. A transport carrying one word beyond the
+  // value-or-error union is over the budget the hand-written form sets, so the
+  // comparison must reject it. Without this the size gate could pass because every
+  // measured type happens to fit rather than because the budget is enforced.
+  if (inject) {
+    struct widened {
+      result<int, error> transport;
+      int extra;
+    };
+    check("int,error.injected_widening", sizeof(widened),
+          sizeof(hand_written<int, error>), true, true);
+  }
+  // Five type pairs are measured; the sixth exists only in the inverted run.
+  r.num("cases.asked", asked);
+  r.num("cases.known", inject ? 6 : 5);
+  if (asked != (inject ? 6 : 5))
+    r.fail("the size probe measured " + std::to_string(asked) +
+           " type pairs and the gate expects " + (inject ? "6" : "5"));
   return r.finish();
 }
 
@@ -199,6 +223,9 @@ int probe_alloc(Fmt fmt, const std::vector<std::string>& args) {
   Report r(fmt, "alloc");
   r.num("allocations", g_allocs);
   r.num("iterations", 1000);
+  // The minimal, rich and type-erased policies are each driven on the measured path.
+  r.num("cases.asked", 3);
+  r.num("cases.known", 3);
   r.num("diagnostics_enabled", JMPXX_DIAGNOSTICS_ENABLED);
   r.boolean("allocation_free", g_allocs == 0);
   if (g_allocs != 0)
@@ -252,6 +279,8 @@ int probe_destructors(Fmt fmt) {
   r.num("success.constructed", Counted::ctor);
   r.num("success.destructed", Counted::dtor);
   r.num("frames", 8);
+  r.num("cases.asked", 2);
+  r.num("cases.known", 2);
   if (after_fail_ctor != after_fail_dtor)
     r.fail("failure path skipped or double-ran a destructor");
   if (Counted::ctor != Counted::dtor)
@@ -306,6 +335,11 @@ int probe_semantics(Fmt fmt) {
   C(result<int, error>(3) == result<int, error>(3), "equality against a result");
 
   r.num("checks", checks);
+  r.num("cases.asked", checks);
+  r.num("cases.known", 12);
+  if (checks != 12)
+    r.fail("the semantics probe ran " + std::to_string(checks) +
+           " checks and the gate expects 12");
   return r.finish();
 }
 
@@ -317,6 +351,8 @@ int probe_levels(Fmt fmt) {
   r.str("try.reach", "propagates one frame per use and composes to any depth");
   r.str("scope.cost", "one call frame unless inlined; no allocation");
   r.str("scope.reach", "one typed landing boundary for a region");
+  r.num("cases.asked", 4);
+  r.num("cases.known", 4);
   return r.finish();
 }
 
@@ -347,6 +383,8 @@ int probe_policies(Fmt fmt) {
   r.num("sizeof.result_rich",
         static_cast<long long>(sizeof(result<int, rich_error>)));
   r.num("diagnostics_enabled", JMPXX_DIAGNOSTICS_ENABLED);
+  r.num("cases.asked", 3);
+  r.num("cases.known", 3);
   if (!std::is_trivially_copyable_v<result<int, rich_error>> ||
       !std::is_trivially_copyable_v<result<int, erased_error>>)
     r.fail("a policy made the transport non-trivially-copyable");
@@ -375,6 +413,10 @@ int probe_diagnostics(Fmt fmt) {
   Report r(fmt, "diagnostics");
   r.num("diagnostics_enabled", JMPXX_DIAGNOSTICS_ENABLED);
 #if JMPXX_DIAGNOSTICS_ENABLED
+  // The capacity bounds are part of the layer's contract, so the reference states
+  // them and the surface reports them rather than the two being written twice.
+  r.num("max_chain", diagnostic::max_chain);
+  r.num("max_inflight", diagnostic::max_inflight);
   landing root;
   result<int, rich_error> bad = di_chain(-1);  // fails at the leaf, 7 hops up
   if (bad.has_value()) {
@@ -524,6 +566,8 @@ int probe_codegen(Fmt fmt, const std::vector<std::string>& args) {
   r.str("fixture", fixture);
   r.str("symbol", symbol);
   r.str("arch", arch);
+  r.num("cases.asked", 1);
+  r.num("cases.known", 1);
   if (fixture.empty() || symbol.empty() || golden.empty()) {
     r.fail("codegen requires --fixture, --symbol, and --golden");
     return r.finish();
@@ -588,33 +632,46 @@ int probe_codegen(Fmt fmt, const std::vector<std::string>& args) {
   return r.finish();
 }
 
-// release-diff: the release check for the dual-personality promise. Two functions
-// in one fixture perform the same operation, one under the minimal policy and one
-// under the rich policy. Compiled in a release configuration the diagnostic layer
-// is gone, so the two must generate identical code. The gate compares their
-// label-canonicalized bodies, and an inverted run asserts a known-bad fixture whose
-// diagnostic call survives into release is caught. It also scans for forbidden
-// strings, because a source location materializes its file and function names into
-// read-only data even where the value is unused, a leak an instruction diff alone
-// would miss.
+// release-diff: the release check for the dual-personality promise, and the
+// instruction-level identity check for the zero-overhead promise.
+//
+// In its one-fixture form two functions perform the same operation, one under the
+// minimal policy and one under the rich policy. Compiled in a release configuration
+// the diagnostic layer is gone, so the two must generate identical code. With
+// --fixture-b the same comparison spans two translation units, which is what the
+// zero-overhead claim needs: the jmpxx chain and the hand-written chain are separate
+// programs that must nevertheless compile to the same instructions. The gate compares
+// label-canonicalized bodies, so two functions that differ only in the compiler's
+// local label numbering still compare equal.
+//
+// It also scans for forbidden strings, because a source location materializes its
+// file and function names into read-only data even where the value is unused, a leak
+// an instruction diff alone would miss.
 int probe_release_diff(Fmt fmt, const std::vector<std::string>& args) {
-  std::string fixture, sym_a, sym_b, arch = "x86_64", expect = "equal";
+  std::string fixture, fixture_b, sym_a, sym_b, arch = "x86_64", expect = "equal";
   std::vector<std::string> forbid;
   for (std::size_t i = 0; i < args.size(); ++i) {
     const std::string& a = args[i];
     auto next = [&]() { return (i + 1 < args.size()) ? args[++i] : std::string(); };
     if (a == "--fixture") fixture = next();
+    else if (a == "--fixture-b") fixture_b = next();
     else if (a == "--symbol-a") sym_a = next();
     else if (a == "--symbol-b") sym_b = next();
     else if (a == "--arch") arch = next();
     else if (a == "--expect") expect = next();
     else if (a == "--forbid-string") forbid.push_back(next());
   }
+  if (sym_b.empty()) sym_b = sym_a;  // two fixtures commonly share the symbol name
   Report r(fmt, "release-diff");
   r.str("fixture", fixture);
+  r.str("fixture_b", fixture_b);
   r.str("symbol_a", sym_a);
   r.str("symbol_b", sym_b);
   r.str("expect", expect);
+  // Two functions compared, whether they come from one fixture or two. Reporting the
+  // count keeps a gate that quietly compares one thing visible.
+  r.num("cases.asked", 2);
+  r.num("cases.known", 2);
   if (fixture.empty() || sym_a.empty() || sym_b.empty()) {
     r.fail("release-diff requires --fixture, --symbol-a, and --symbol-b");
     return r.finish();
@@ -633,51 +690,66 @@ int probe_release_diff(Fmt fmt, const std::vector<std::string>& args) {
   }
 
   const std::string asm_out = "/tmp/jmpxx_rd.s";
+  const std::string asm_out_b = "/tmp/jmpxx_rd_b.s";
   const std::string err_out = "/tmp/jmpxx_rd.err";
   // A release configuration: NDEBUG turns the diagnostic layer off, which is the
-  // configuration under which the rich policy must equal the minimal policy.
-  std::string cmd = cxx +
+  // configuration under which the rich policy must equal the minimal policy, and the
+  // ship configuration the zero-overhead claim is made about.
+  const std::string flags =
       " -std=c++20 -O2 -DNDEBUG -fno-exceptions -fno-rtti"
       " -fno-asynchronous-unwind-tables -fno-ident -S"
-      " -I" JMPXX_INCLUDE_DIR " -o " + asm_out + " " + fixture + " 2> " + err_out;
+      " -I" JMPXX_INCLUDE_DIR " -I" JMPXX_BENCH_KERNELS_DIR " -o ";
   r.str("compiler", cxx);
-  if (std::system(cmd.c_str()) != 0) {
+  if (std::system((cxx + flags + asm_out + " " + fixture + " 2> " + err_out).c_str()) != 0) {
     r.fail("fixture failed to compile: " + trim(read_file(err_out)));
     return r.finish();
   }
-
   std::string text = read_file(asm_out);
+  std::string text_b = text;
+  if (!fixture_b.empty()) {
+    if (std::system((cxx + flags + asm_out_b + " " + fixture_b + " 2> " + err_out).c_str()) != 0) {
+      r.fail("second fixture failed to compile: " + trim(read_file(err_out)));
+      return r.finish();
+    }
+    text_b = read_file(asm_out_b);
+  }
+
   Normalized a = normalize(text, sym_a, arch);
-  Normalized b = normalize(text, sym_b, arch);
+  Normalized b = normalize(text_b, sym_b, arch);
   if (!a.found || !b.found) {
     r.fail("a target symbol was not found in the emitted assembly");
     return r.finish();
   }
-  std::string ca = canon_labels(a.text);
-  std::string cb = canon_labels(b.text);
-  bool identical = (ca == cb);
-  r.num(sym_a + ".instructions", a.instructions);
-  r.num(sym_b + ".instructions", b.instructions);
+  bool identical = (canon_labels(a.text) == canon_labels(b.text));
+  r.num("a.instructions", a.instructions);
+  r.num("b.instructions", b.instructions);
   r.boolean("bodies_identical", identical);
 
   if (expect == "equal" && !identical)
-    r.fail("release codegen of the rich policy diverged from the minimal policy");
+    r.fail(fixture_b.empty()
+               ? "release codegen of the rich policy diverged from the minimal policy"
+               : "the jmpxx form and the hand-written form no longer compile to the "
+                 "same instructions");
   if (expect == "differ" && identical)
-    r.fail("expected the policies to diverge but their release codegen was identical");
+    r.fail("expected the two forms to diverge but their release codegen was identical");
 
   // Forbidden-string scan: a source location, or any debug-only marker, must not
-  // reach a release build's read-only data. Scan the emitted string directives.
+  // reach a release build's read-only data. Scan the emitted string directives of
+  // both translation units, because either can carry the leak.
   for (const std::string& mark : forbid) {
     bool leaked = false;
-    std::istringstream in(text);
-    std::string line;
-    while (std::getline(in, line)) {
-      std::string t = trim(line);
-      if ((t.rfind(".string", 0) == 0 || t.rfind(".ascii", 0) == 0) &&
-          t.find(mark) != std::string::npos) {
-        leaked = true;
-        break;
+    for (const std::string* emitted : {&text, &text_b}) {
+      std::istringstream in(*emitted);
+      std::string line;
+      while (std::getline(in, line)) {
+        std::string t = trim(line);
+        if ((t.rfind(".string", 0) == 0 || t.rfind(".ascii", 0) == 0) &&
+            t.find(mark) != std::string::npos) {
+          leaked = true;
+          break;
+        }
       }
+      if (leaked) break;
     }
     r.boolean("leaked." + mark, leaked);
     if (leaked)
@@ -754,6 +826,8 @@ int probe_size_delta(Fmt fmt, const std::vector<std::string>& args) {
   r.str("fixture", fixture);
   r.str("baseline", baseline);
   r.str("arch", arch);
+  r.num("cases.asked", 2);
+  r.num("cases.known", 2);
   if (fixture.empty() || baseline.empty()) {
     r.fail("size-delta requires --fixture and --baseline");
     return r.finish();
@@ -885,6 +959,8 @@ int probe_compile_cost(Fmt fmt, const std::vector<std::string>& args) {
   Report r(fmt, "compile-cost");
   r.str("fixture", fixture);
   r.str("baseline", baseline);
+  r.num("cases.asked", 2);
+  r.num("cases.known", 2);
   if (fixture.empty() || baseline.empty()) {
     r.fail("compile-cost requires --fixture and --baseline");
     return r.finish();
@@ -1028,6 +1104,23 @@ int probe_abi_layout(Fmt fmt, const std::vector<std::string>& args) {
   }
 
   std::string want = read_file(golden);
+  // Each described type is one case. The golden's own descriptor line count is what
+  // the gate knows of, so a descriptor that stops describing a type fails here rather
+  // than passing with fewer types checked.
+  auto descriptor_lines = [](const std::string& text) {
+    long long n = 0;
+    std::istringstream in(text);
+    for (std::string l; std::getline(in, l);) {
+      const std::string t = trim(l);
+      if (!t.empty() && t[0] != '#') ++n;
+    }
+    return n;
+  };
+  r.num("cases.asked", descriptor_lines(emitted));
+  r.num("cases.known", descriptor_lines(want));
+  if (descriptor_lines(emitted) != descriptor_lines(want))
+    r.fail("the descriptor reported " + std::to_string(descriptor_lines(emitted)) +
+           " types and the golden holds " + std::to_string(descriptor_lines(want)));
   bool matches = (want == emitted);
   r.boolean("golden_match", matches);
   if (!matches) {
@@ -1124,6 +1217,8 @@ int probe_reflect(Fmt fmt) {
   r.boolean("cast.denied", cast && *cast == status::denied);
   auto fs = reflect::failures<status>();
   r.num("failures", static_cast<long long>(fs.size()));
+  r.num("enum_range.min", reflect::enum_range<status>::min);
+  r.num("enum_range.max", reflect::enum_range<status>::max);
   erased_error e = reflect::as_erased(status::not_found);
   r.str("erased.domain", std::string(e.domain_name()));
   r.str("erased.message", std::string(e.message()));
@@ -1156,6 +1251,8 @@ int probe_platform(Fmt fmt) {
   r.boolean("exceptions_enabled", JMPXX_HAS_EXCEPTIONS);
   r.boolean("expected_bridge", JMPXX_INTEROP_HAS_EXPECTED);
   r.boolean("exception_bridge", JMPXX_INTEROP_HAS_EXCEPTION_BRIDGE);
+  r.str("version", JMPXX_VERSION_STRING);
+  r.num("version_number", JMPXX_VERSION);
   return r.finish();
 }
 
@@ -1177,7 +1274,7 @@ int main(int argc, char** argv) {
       rest.push_back(a);
   }
 
-  if (cmd == "size") return probe_size(fmt);
+  if (cmd == "size") return probe_size(fmt, rest);
   if (cmd == "alloc") return probe_alloc(fmt, rest);
   if (cmd == "destructors") return probe_destructors(fmt);
   if (cmd == "semantics") return probe_semantics(fmt);
@@ -1198,7 +1295,7 @@ int main(int argc, char** argv) {
   if (cmd == "abi-layout") return probe_abi_layout(fmt, rest);
   if (cmd == "all") {
     int rc = 0;
-    rc |= probe_size(fmt);
+    rc |= probe_size(fmt, {});
     rc |= probe_alloc(fmt, {});
     rc |= probe_destructors(fmt);
     rc |= probe_semantics(fmt);
