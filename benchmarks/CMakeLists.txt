@@ -46,10 +46,23 @@ if(NOT EXISTS ${JXB_TL_HDR})
   file(DOWNLOAD
     https://raw.githubusercontent.com/TartanLlama/expected/v1.3.1/include/tl/expected.hpp
     ${JXB_TL_HDR} TIMEOUT 30 STATUS JXB_TL_STATUS)
+  # A failed download still leaves a file behind, and an empty header is worse than an
+  # absent one: __has_include answers yes, the kernel compiles in, and it names types
+  # that are not there. Remove it so the suite reports tl::expected unavailable, which
+  # is what the non-fatal fetch is for.
+  list(GET JXB_TL_STATUS 0 JXB_TL_CODE)
+  if(NOT JXB_TL_CODE EQUAL 0)
+    file(REMOVE ${JXB_TL_HDR})
+  endif()
 endif()
 if(EXISTS ${JXB_TL_HDR})
-  set(JXB_TLEXPECTED 1)
-  list(APPEND JXB_BENCH_INCLUDES ${JXB_TL_DIR})
+  file(SIZE ${JXB_TL_HDR} JXB_TL_BYTES)
+  if(JXB_TL_BYTES GREATER 0)
+    set(JXB_TLEXPECTED 1)
+    list(APPEND JXB_BENCH_INCLUDES ${JXB_TL_DIR})
+  else()
+    file(REMOVE ${JXB_TL_HDR})
+  endif()
 endif()
 
 add_executable(jmpxx-bench
