@@ -260,9 +260,12 @@ add_test(NAME interop.firmware_macros COMMAND jmpxx_firmware_macros)
 # cross-compiler and a system package and are covered without it. The inverted case
 # gives a public header a name each ecosystem defines, which must fail to compile
 # behind that ecosystem's headers.
+# The tier registers only where the trees have been fetched, like every other tier that
+# needs a tool the host may not carry. Registering it without them made it fail on a job
+# that had provisioned nothing, which says the surface broke where it was never tried.
 set(JMPXX_FOREIGN_HEADERS_ROOT "" CACHE PATH
   "Root of the fetched upstream header trees the foreign-consumer tier builds behind")
-if(UNIX)
+if(UNIX AND JMPXX_FOREIGN_HEADERS_ROOT)
   add_test(NAME interop.foreign_headers COMMAND bash
     ${CMAKE_SOURCE_DIR}/tests/scripts/foreign_headers_check.sh
     ${CMAKE_CXX_COMPILER} ${CMAKE_SOURCE_DIR}/include

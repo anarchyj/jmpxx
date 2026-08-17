@@ -219,8 +219,9 @@ jobs:
           operating_system: freebsd
           version: "14.2"
           run: |
-            sudo pkg install -y cmake ninja
-            cmake -S . -B build -G Ninja -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF
+            sudo pkg install -y cmake ninja curl
+            bash tests/scripts/provision_foreign_headers.sh "$PWD/foreign-headers"
+            cmake -S . -B build -G Ninja -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF -DJMPXX_FOREIGN_HEADERS_ROOT="$PWD/foreign-headers"
             cmake --build build
             # The sanitizer and bash-scan tiers and the g++-13-pinned codegen and
             # freestanding tiers are covered on Linux; the BSD cell checks that the
@@ -234,7 +235,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: brew install ninja
-      - run: cmake -S . -B build -G Ninja -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF
+      # The foreign-consumer tier needs the upstream trees on every host that runs it,
+      # because the question is whether this compiler's parse of the public surface
+      # survives them, and apple-clang answers it differently from GCC.
+      - name: provision the upstream header trees
+        run: bash tests/scripts/provision_foreign_headers.sh "$RUNNER_TEMP/foreign-headers"
+      - run: cmake -S . -B build -G Ninja -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF -DJMPXX_FOREIGN_HEADERS_ROOT="$RUNNER_TEMP/foreign-headers"
       - run: cmake --build build
       - run: ctest --test-dir build --output-on-failure
 

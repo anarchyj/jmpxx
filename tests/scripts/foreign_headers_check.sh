@@ -75,7 +75,9 @@ try_ecosystem() {
   local exe="$WORK/$label"
   [ "$runner" = "wine" ] && exe="$exe.exe"
   local log="$WORK/$label.log"
-  if "$cxx" -std=c++20 -O1 "${flags[@]}" -I"$inc" -I"$FIXTURES" \
+  # An empty array expands to an unbound variable under set -u on bash 3.2, which is
+  # what macOS ships, so an ecosystem that needs no extra flags must expand guarded.
+  if "$cxx" -std=c++20 -O1 ${flags[@]+"${flags[@]}"} -I"$inc" -I"$FIXTURES" \
        "$fixture" -o "$exe" 2>"$log"; then
     if [ -n "$runner" ] && ! command -v "$runner" >/dev/null 2>&1; then
       report "$label" "built; $runner is absent so it was not run"
@@ -89,6 +91,22 @@ try_ecosystem() {
       report "$label" "built behind these headers and did not run correctly"
       failures=$((failures + 1))
     fi
+    return
+  fi
+
+  # An ecosystem whose own headers are not installed here is absent, not failing. The
+  # fixture never reached the tree, so nothing about this library was put to the test,
+  # and reporting it as a failure would say the surface broke where it was never tried.
+  #
+  # What is matched is the missing include's own name rather than the line carrying it,
+  # because the line also carries the path of the file that did the including, and that
+  # path runs through a directory named for this project.
+  local missing
+  missing="$(grep -oE "fatal error: '[^']+' file not found|fatal error: [^:]+: No such file or directory" \
+             "$log" | head -1)"
+  if [ -n "$missing" ] && ! printf '%s' "$missing" | grep -q "jmpxx"; then
+    report "$label" "SKIP: this ecosystem's headers are not installed here ($missing)"
+    absent=$((absent + 1))
     return
   fi
 
@@ -131,8 +149,11 @@ try_ecosystem windows x86_64-w64-mingw32-g++ "$FIXTURES/windows.cpp" interface w
 try_ecosystem x11 "$CXX" "$FIXTURES/x11.cpp" Status ""
 
 floor=2
-echo "    cases.asked  $((covered + failures))"
-echo "    cases.known  $known"
+# An ecosystem this host cannot reach is not a case the gate declined to ask; it is a
+# case that does not exist here. It leaves the known population and is reported as
+# absent, so the two counts agree while the summary still says what was out of reach.
+echo "    cases.asked  $((covered + failures + upstream))"
+echo "    cases.known  $((known - absent))"
 echo "foreign header trees: $covered covered, $absent absent, $upstream skipped as "\
 "upstream problems, $failures failed"
 
