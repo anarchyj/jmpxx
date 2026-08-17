@@ -1,0 +1,11 @@
+{
+ "schema": 1,
+ "threshold": 0.6,
+ "allowlist_ceiling": 6,
+ "note": "A pair here is a restatement the project keeps on purpose. Every entry names the reason, and the ceiling bounds the list so it cannot grow into a way of passing.",
+ "injected_duplicate": "The arm runs destructors only where the compiler has emitted unwind cleanup tables, which is the effect of compiling with exceptions enabled.",
+ "pairs": [],
+ "exempt_files": {
+  "CHANGELOG.md": "A released entry records what the project said at that release and is not rewritten afterwards, so it is held to the claim audit and not to the one-home rule."
+ }
+}

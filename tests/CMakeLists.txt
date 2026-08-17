@@ -626,6 +626,53 @@ if(UNIX AND JMPXX_PYTHON3)
     --overlay docs/reference/propagation-levels.md=${CMAKE_SOURCE_DIR}/tests/doc_claim/known_bad/propagation_levels.bad.md)
   set_tests_properties(doc_claim.teeth PROPERTIES WILL_FAIL TRUE)
 endif()
+# Claim integrity over the public surface. The audit holds every claim-bearing sentence
+# in the public prose and the public code comments against the ledger entry that says
+# what backs it; the provenance pass holds every measured claim to the toolchain, target
+# and date it was obtained on; the canonical-home check reports a fact that has acquired
+# a second home. Each has an inverted case per defect class, because the classes fail
+# independently: an unbacked claim, a withdrawn wording returning, a measurement losing
+# its provenance, and a measured claim relabelled to dodge the provenance rule.
+if(UNIX AND JMPXX_PYTHON3)
+  set(CLAIMS ${CMAKE_SOURCE_DIR}/tests/claims)
+  add_test(NAME claim.audit COMMAND ${JMPXX_PYTHON3}
+    ${CMAKE_SOURCE_DIR}/tests/scripts/claim_audit.py
+    --source-root ${CMAKE_SOURCE_DIR} --ledger ${CLAIMS}/ledger.json
+    --build-dir ${CMAKE_BINARY_DIR} --mode audit
+    --report ${CMAKE_BINARY_DIR}/claim-audit.json)
+  foreach(injection unbacked-claim withdrawn-form)
+    add_test(NAME claim.audit.teeth.${injection} COMMAND ${JMPXX_PYTHON3}
+      ${CMAKE_SOURCE_DIR}/tests/scripts/claim_audit.py
+      --source-root ${CMAKE_SOURCE_DIR} --ledger ${CLAIMS}/ledger.json
+      --build-dir ${CMAKE_BINARY_DIR} --mode audit --inject ${injection})
+    set_tests_properties(claim.audit.teeth.${injection} PROPERTIES WILL_FAIL TRUE)
+  endforeach()
+
+  add_test(NAME claim.provenance COMMAND ${JMPXX_PYTHON3}
+    ${CMAKE_SOURCE_DIR}/tests/scripts/claim_audit.py
+    --source-root ${CMAKE_SOURCE_DIR} --ledger ${CLAIMS}/ledger.json
+    --build-dir ${CMAKE_BINARY_DIR} --mode provenance
+    --report ${CMAKE_BINARY_DIR}/claim-provenance.json)
+  foreach(injection stripped-provenance reclassified)
+    add_test(NAME claim.provenance.teeth.${injection} COMMAND ${JMPXX_PYTHON3}
+      ${CMAKE_SOURCE_DIR}/tests/scripts/claim_audit.py
+      --source-root ${CMAKE_SOURCE_DIR} --ledger ${CLAIMS}/ledger.json
+      --build-dir ${CMAKE_BINARY_DIR} --mode provenance --inject ${injection})
+    set_tests_properties(claim.provenance.teeth.${injection} PROPERTIES WILL_FAIL TRUE)
+  endforeach()
+
+  add_test(NAME claim.canonical_home COMMAND ${JMPXX_PYTHON3}
+    ${CMAKE_SOURCE_DIR}/tests/scripts/canonical_home.py
+    --source-root ${CMAKE_SOURCE_DIR}
+    --allowlist ${CLAIMS}/canonical-home-allowlist.json
+    --report ${CMAKE_BINARY_DIR}/canonical-home.json)
+  add_test(NAME claim.canonical_home.teeth COMMAND ${JMPXX_PYTHON3}
+    ${CMAKE_SOURCE_DIR}/tests/scripts/canonical_home.py
+    --source-root ${CMAKE_SOURCE_DIR}
+    --allowlist ${CLAIMS}/canonical-home-allowlist.json --inject)
+  set_tests_properties(claim.canonical_home.teeth PROPERTIES WILL_FAIL TRUE)
+endif()
+
 
 # The experimental unwind arm's tiers live beside the arm's fixtures. They are the
 # largest single group here and the only one whose subject is platform machinery rather
