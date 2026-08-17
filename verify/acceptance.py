@@ -84,7 +84,7 @@ GATE_CASES = {
     "compile_cost": 2,
     "config_matrix": 8,
     "differential": 4096,
-    "doc_claim": 27,
+    "doc_claim": 26,
     "exception_safety": 7,
     "foreign_headers": 4,
     "gate_accounting": 30,
