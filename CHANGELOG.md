@@ -8,6 +8,17 @@ is recorded here with its migration impact.
 
 ## [Unreleased]
 
+### Fixed
+- The unwind reference claimed that a catch-all on the escape path is loud on every
+  runtime and never produces a silent wrong landing. On libcxxrt, which is the C++
+  runtime on FreeBSD, that is false: a frame catching the escape with a catch-all does
+  not run its own destructors, and when it rethrows the escape still reaches its landing
+  with the correct error, so a caller sees a success and a leak. A frame marked
+  `noexcept` is skipped the same way instead of terminating. The arm cannot detect
+  either, because the runtime skips those frames before the arm regains control. The
+  reference now states the limitation, and the per-runtime matrix records the three
+  cells and fails if their behaviour changes in either direction.
+
 ## [0.1.3] - 2026-08-16
 
 ### Changed

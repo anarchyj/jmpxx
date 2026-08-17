@@ -271,6 +271,39 @@ bool allows(const char* allowed, const std::string& outcome) {
   return false;
 }
 
+// A cell where a named runtime is known to leave the portable safe set. The row above says
+// what the arm needs; this says what one runtime actually does, measured rather than
+// assumed, so the difference is recorded in the open instead of failing the probe forever
+// or being quietly widened into the portable row.
+//
+// The match is exact in both directions. An outcome that is not the recorded one fails
+// even when it looks better, because a runtime that starts behaving differently is a
+// finding either way and a toolchain fix should be noticed rather than assumed. That is
+// the same discipline the link-time cell applies to the ARM exception-handling ABI.
+struct known_unsafe {
+  const char* runtime;  // substring of the fixture's reported runtime
+  const char* name;
+  const char* outcome;
+  const char* why;
+};
+
+const known_unsafe known_unsafe_cells[] = {
+    {"libcxxrt", "catch_all_rethrow", "imbalance",
+     "the catching frame's own destructors do not run, and the escape still reaches its "
+     "landing with the right payload, so the loss is silent"},
+    {"libcxxrt", "catch_all_swallow", "imbalance",
+     "the catching frame's own destructors do not run when it consumes the escape"},
+    {"libcxxrt", "noexcept_barrier", "imbalance",
+     "an empty exception specification on the path does not terminate the forced unwind "
+     "here; the frame is left without running its destructors"},
+};
+
+const known_unsafe* find_known_unsafe(const std::string& runtime, const std::string& name) {
+  for (const auto& k : known_unsafe_cells)
+    if (name == k.name && runtime.find(k.runtime) != std::string::npos) return &k;
+  return nullptr;
+}
+
 // Run one case and name what came back. A case that reports nothing did not survive to
 // report, which is the termination outcome.
 std::string run_case(const std::string& fixture, const std::string& name, bool inject,
@@ -325,7 +358,8 @@ int probe_unwind_matrix(Fmt fmt, const std::vector<std::string>& args) {
   }
 
   const std::string tmp = "/tmp/jmpxx_unwind_matrix.out";
-  r.str("runtime", uwm::run_query_line(fixture, "--runtime", tmp));
+  const std::string runtime = uwm::run_query_line(fixture, "--runtime", tmp);
+  r.str("runtime", runtime);
   std::istringstream listed(uwm::run_query(fixture, "--list", tmp));
   std::vector<std::string> names;
   for (std::string line; std::getline(listed, line);) {
@@ -337,6 +371,7 @@ int probe_unwind_matrix(Fmt fmt, const std::vector<std::string>& args) {
   // is reported and a short list fails. This is not hypothetical: trimming the helper that
   // reads the fixture's answers reduced the matrix to one case without turning it red.
   const std::size_t known = sizeof(uwm::expectations) / sizeof(uwm::expectations[0]);
+  std::size_t unsafe_seen = 0;
   r.num("cases.asked", static_cast<long long>(names.size()));
   r.num("cases.known", static_cast<long long>(known));
   if (names.size() != known)
@@ -353,12 +388,37 @@ int probe_unwind_matrix(Fmt fmt, const std::vector<std::string>& args) {
       r.fail("the fixture ran a case the matrix has no expectation for: " + name);
       continue;
     }
-    if (!uwm::allows(row->allowed, outcome))
+    if (uwm::allows(row->allowed, outcome)) continue;
+    const uwm::known_unsafe* k = uwm::find_known_unsafe(runtime, name);
+    if (k && outcome == k->outcome) {
+      ++unsafe_seen;
+      r.str("case." + name + ".known_unsafe", k->why);
+      continue;
+    }
+    if (k)
+      r.fail(name + ": this runtime is recorded as producing '" + k->outcome +
+             "' and produced '" + outcome + "'; the recorded behaviour changed");
+    else
       r.fail(name + ": outcome '" + outcome + "' is outside the safe set (" +
              row->allowed + ")");
   }
+  // How many cells this runtime is recorded as leaving unsafe, against how many the
+  // record holds for it. A cell that stops being unsafe is a finding, so it is not enough
+  // for each cell to match: the count must match too, or a record could quietly grow.
+  std::size_t unsafe_known = 0;
+  for (const auto& k : uwm::known_unsafe_cells)
+    if (runtime.find(k.runtime) != std::string::npos) ++unsafe_known;
+  r.num("cases.known_unsafe_seen", static_cast<long long>(unsafe_seen));
+  r.num("cases.known_unsafe_recorded", static_cast<long long>(unsafe_known));
+  if (unsafe_seen != unsafe_known)
+    r.fail("this runtime is recorded as leaving " + std::to_string(unsafe_known) +
+           " cell(s) unsafe and produced " + std::to_string(unsafe_seen));
   r.note("each row is this runtime's answer, not a portable guarantee; the reference "
          "states the per-runtime contract");
+  if (unsafe_known)
+    r.note("this runtime leaves recorded cells outside the arm's portable guarantee; see "
+           "the caveats in the unwind reference before putting a handler or an empty "
+           "exception specification on an escape path here");
   return r.finish();
 }
 

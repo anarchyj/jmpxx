@@ -88,11 +88,22 @@ portable. How a `catch (...)` interacts with the escape depends on the C++ runti
 transits the escape on libcxxrt, terminates the program on libc++abi, and on libstdc++ and
 WebAssembly transits when it rethrows with the idiom
 `catch (const abi::__forced_unwind&) { throw; }` and otherwise consumes the escape, which
-the arm turns into a defined termination. The outcome is loud in every case, never a silent
-wrong landing. Keep a catch-all off the escape path, or use a typed catch.
+the arm turns into a defined termination. Keep a catch-all off the escape path, or use a
+typed catch.
 
-A frame on the escape path marked `noexcept` terminates the unwind at that frame, because
-an empty exception specification is a barrier the forced unwind cannot cross. Functions on
+On libcxxrt the loss is not loud, and this is the one place the arm cannot make it so. A
+frame that catches the escape with a catch-all does not run its own destructors, whether it
+rethrows or consumes it, and when it rethrows the escape still arrives at its landing with
+the correct error. A caller sees a successful landing and a leak. The same happens to a
+frame marked `noexcept` there, which does not terminate the unwind as it does elsewhere.
+Nothing in the arm can detect this, because the frames are skipped by the runtime before
+the arm regains control. On libcxxrt, which is the C++ runtime on FreeBSD, an escape path
+must carry neither a catch-all nor an empty exception specification. The per-runtime
+behaviour matrix records these three cells and fails if their behaviour changes.
+
+A frame on the escape path marked `noexcept` terminates the unwind at that frame on the
+other runtimes, because an empty exception specification is a barrier the forced unwind
+cannot cross. Functions on
 the path between an eject and its landing must not be `noexcept`. A function that holds the
 landing may be `noexcept`, because the unwind stops there and never crosses it.
 
