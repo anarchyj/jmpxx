@@ -11,13 +11,13 @@
 // from jmpxx/core.hpp
 // SPDX-License-Identifier: MIT
 // The minimal, freestanding core of jmpxx: the value-or-error transport, the
-// minimal error representation, and single-construct propagation. Including this
-// header pulls in nothing outside the freestanding subset of the standard
-// library, so it is usable where there is no heap, no exceptions, and no RTTI.
+// minimal error representation, and single-construct propagation.
 //
-// Hosted extensions (diagnostics, interop bridges, and the experimental
-// non-local escape) live under separate headers and are never reached by
-// including this one.
+// This is the include boundary. Everything hosted, the diagnostic layer, the interop
+// bridges, the reflection layer and the experimental escape, lives under a separate
+// header and is never reached from here, which is what keeps the core usable where
+// the standard library is not. docs/reference/policies.md states what that promises a
+// consumer; tests/scripts/include_boundary_check.sh is what holds it.
 #ifndef JMPXX_CORE_HPP
 #define JMPXX_CORE_HPP
 
@@ -43,8 +43,8 @@
 // detection makes that fence enforceable and gives the experimental unwind arm one
 // stable place to ask which ABI it is on.
 //
-// This header pulls in no standard library header and uses only the preprocessor,
-// so it is freestanding and is safe on the minimal core's include path.
+// It uses only the preprocessor, so it costs a consumer nothing to include and is
+// safe anywhere, including on the minimal core's path.
 #ifndef JMPXX_PLATFORM_DETECT_HPP
 #define JMPXX_PLATFORM_DETECT_HPP
 
@@ -472,11 +472,10 @@ const T* addressof(const T&&) = delete;
 // from jmpxx/platform/trap.hpp
 // SPDX-License-Identifier: MIT
 // Fenced fail-fast. Terminating the program is the one platform-specific act the
-// core performs, so it lives behind this boundary rather than scattered through
-// the core. It is freestanding: it pulls no standard header and uses only
-// compiler intrinsics. The textual reason is accepted now and reserved for a
-// hosted diagnostic sink; today the trap itself is the diagnostic, deterministic
-// and visible to a debugger.
+// core performs, so it lives behind this boundary rather than scattered through the
+// core; docs/reference/platform.md states what a caller sees when it fires. The
+// textual reason is accepted now and reserved for a hosted diagnostic sink; today
+// the trap itself is the diagnostic, deterministic and visible to a debugger.
 #ifndef JMPXX_PLATFORM_TRAP_HPP
 #define JMPXX_PLATFORM_TRAP_HPP
 
@@ -484,9 +483,9 @@ const T* addressof(const T&&) = delete;
 namespace jmpxx {
 namespace platform {
 
-// Terminate immediately and never return. Used for a checked precondition
-// violation on value/error extraction, which is a defined, checked event rather
-// than undefined behavior.
+// Terminate immediately and never return. A compiler intrinsic rather than abort()
+// so the core needs no hosted header and the stop is one instruction a debugger
+// lands on.
 [[noreturn]] JMPXX_ALWAYS_INLINE void fail_fast(const char* reason) noexcept {
   (void)reason;
 #if JMPXX_HAS_BUILTIN(__builtin_trap) || JMPXX_COMPILER_GCC || JMPXX_COMPILER_CLANG
@@ -843,12 +842,11 @@ class JMPXX_NODISCARD(
     return has_ ? static_cast<E>(static_cast<G&&>(alt)) : err_;
   }
 
-  // Monadic composition, matching std::expected (P2505). and_then and transform act on
-  // the value and pass a failure through unchanged; or_else and transform_error act on
-  // the error and pass a value through unchanged. The callable is invoked as f(value) or
-  // f(error) directly rather than through std::invoke, which keeps the core freestanding
-  // (no <functional>); a function, a lambda, or a function object works. For a
-  // result<void, E> the value-side callable takes no argument.
+  // Monadic composition, matching std::expected (P2505); the contract for each
+  // combinator and for the callable it takes is in docs/reference/policies.md. The
+  // call below is written out rather than routed through std::invoke because
+  // <functional> is not in the freestanding subset, which is the one thing about
+  // these four functions the code does not show on its own.
 
   // and_then: f itself returns a result; chain it on the value, propagate the failure.
   template <class F>

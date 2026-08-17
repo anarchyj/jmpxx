@@ -110,12 +110,10 @@ inline category_table& categories() noexcept {
   return to_error_code(e);
 }
 
-// std::error_code -> jmpxx::error. A code in a jmpxx category recovers its original
-// code and domain exactly. A foreign code keeps its value and is tagged with the
-// generic domain, which is lossy for the foreign category; a program that must
-// preserve a foreign error_code carries it verbatim as result<T, std::error_code>
-// rather than narrowing it here. is_jmpxx distinguishes the two so the caller can
-// branch on which case it has.
+// std::error_code -> jmpxx::error. What each direction preserves, and what a foreign
+// category loses, is in docs/reference/interop.md. is_jmpxx is exposed beside it
+// because a caller that must not narrow a foreign code needs to ask before it
+// converts rather than after.
 [[nodiscard]] inline bool is_jmpxx(const std::error_code& ec) noexcept {
   return detail::categories().domain_of(ec.category()) >= 0;
 }

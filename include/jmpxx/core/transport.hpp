@@ -365,12 +365,11 @@ class JMPXX_NODISCARD(
     return has_ ? static_cast<E>(static_cast<G&&>(alt)) : err_;
   }
 
-  // Monadic composition, matching std::expected (P2505). and_then and transform act on
-  // the value and pass a failure through unchanged; or_else and transform_error act on
-  // the error and pass a value through unchanged. The callable is invoked as f(value) or
-  // f(error) directly rather than through std::invoke, which keeps the core freestanding
-  // (no <functional>); a function, a lambda, or a function object works. For a
-  // result<void, E> the value-side callable takes no argument.
+  // Monadic composition, matching std::expected (P2505); the contract for each
+  // combinator and for the callable it takes is in docs/reference/policies.md. The
+  // call below is written out rather than routed through std::invoke because
+  // <functional> is not in the freestanding subset, which is the one thing about
+  // these four functions the code does not show on its own.
 
   // and_then: f itself returns a result; chain it on the value, propagate the failure.
   template <class F>

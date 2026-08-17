@@ -11,13 +11,13 @@
 // from jmpxx/core.hpp
 // SPDX-License-Identifier: MIT
 // The minimal, freestanding core of jmpxx: the value-or-error transport, the
-// minimal error representation, and single-construct propagation. Including this
-// header pulls in nothing outside the freestanding subset of the standard
-// library, so it is usable where there is no heap, no exceptions, and no RTTI.
+// minimal error representation, and single-construct propagation.
 //
-// Hosted extensions (diagnostics, interop bridges, and the experimental
-// non-local escape) live under separate headers and are never reached by
-// including this one.
+// This is the include boundary. Everything hosted, the diagnostic layer, the interop
+// bridges, the reflection layer and the experimental escape, lives under a separate
+// header and is never reached from here, which is what keeps the core usable where
+// the standard library is not. docs/reference/policies.md states what that promises a
+// consumer; tests/scripts/include_boundary_check.sh is what holds it.
 #ifndef JMPXX_CORE_HPP
 #define JMPXX_CORE_HPP
 
@@ -43,8 +43,8 @@
 // detection makes that fence enforceable and gives the experimental unwind arm one
 // stable place to ask which ABI it is on.
 //
-// This header pulls in no standard library header and uses only the preprocessor,
-// so it is freestanding and is safe on the minimal core's include path.
+// It uses only the preprocessor, so it costs a consumer nothing to include and is
+// safe anywhere, including on the minimal core's path.
 #ifndef JMPXX_PLATFORM_DETECT_HPP
 #define JMPXX_PLATFORM_DETECT_HPP
 
@@ -472,11 +472,10 @@ const T* addressof(const T&&) = delete;
 // from jmpxx/platform/trap.hpp
 // SPDX-License-Identifier: MIT
 // Fenced fail-fast. Terminating the program is the one platform-specific act the
-// core performs, so it lives behind this boundary rather than scattered through
-// the core. It is freestanding: it pulls no standard header and uses only
-// compiler intrinsics. The textual reason is accepted now and reserved for a
-// hosted diagnostic sink; today the trap itself is the diagnostic, deterministic
-// and visible to a debugger.
+// core performs, so it lives behind this boundary rather than scattered through the
+// core; docs/reference/platform.md states what a caller sees when it fires. The
+// textual reason is accepted now and reserved for a hosted diagnostic sink; today
+// the trap itself is the diagnostic, deterministic and visible to a debugger.
 #ifndef JMPXX_PLATFORM_TRAP_HPP
 #define JMPXX_PLATFORM_TRAP_HPP
 
@@ -484,9 +483,9 @@ const T* addressof(const T&&) = delete;
 namespace jmpxx {
 namespace platform {
 
-// Terminate immediately and never return. Used for a checked precondition
-// violation on value/error extraction, which is a defined, checked event rather
-// than undefined behavior.
+// Terminate immediately and never return. A compiler intrinsic rather than abort()
+// so the core needs no hosted header and the stop is one instruction a debugger
+// lands on.
 [[noreturn]] JMPXX_ALWAYS_INLINE void fail_fast(const char* reason) noexcept {
   (void)reason;
 #if JMPXX_HAS_BUILTIN(__builtin_trap) || JMPXX_COMPILER_GCC || JMPXX_COMPILER_CLANG
@@ -843,12 +842,11 @@ class JMPXX_NODISCARD(
     return has_ ? static_cast<E>(static_cast<G&&>(alt)) : err_;
   }
 
-  // Monadic composition, matching std::expected (P2505). and_then and transform act on
-  // the value and pass a failure through unchanged; or_else and transform_error act on
-  // the error and pass a value through unchanged. The callable is invoked as f(value) or
-  // f(error) directly rather than through std::invoke, which keeps the core freestanding
-  // (no <functional>); a function, a lambda, or a function object works. For a
-  // result<void, E> the value-side callable takes no argument.
+  // Monadic composition, matching std::expected (P2505); the contract for each
+  // combinator and for the callable it takes is in docs/reference/policies.md. The
+  // call below is written out rather than routed through std::invoke because
+  // <functional> is not in the freestanding subset, which is the one thing about
+  // these four functions the code does not show on its own.
 
   // and_then: f itself returns a result; chain it on the value, propagate the failure.
   template <class F>
@@ -1455,11 +1453,10 @@ static_assert(__is_trivially_copyable(rich_error),
               "out of band, never in the error");
 
 // A landing scope owns the diagnostic context of every failure created under it.
-// It snapshots the store on construction and releases back to that snapshot on
-// destruction, so no diagnostic context outlives the scope that handles its
-// failure, and nested scopes nest correctly. In release it is an empty object. A
-// program places one where it handles failures, and reads a failure's context
-// while it is alive.
+// The lifetime contract a caller needs is in docs/reference/diagnostics.md; what the
+// code cannot show is why the bound is a store mark rather than a count of records:
+// releasing to a mark makes nesting free and makes an early return release exactly
+// what the scope added, with no bookkeeping per failure.
 class landing {
 #if JMPXX_DIAGNOSTICS_ENABLED
   int mark_;
@@ -1494,10 +1491,10 @@ JMPXX_ALWAYS_INLINE void note_propagation(
 namespace diagnostic {
 
 #if JMPXX_DIAGNOSTICS_ENABLED
-// A read-only view of a failure's captured context, valid only while the owning
-// landing scope is alive. The pointers alias the thread-local store and must not be
-// retained past that scope. available is false when the handle was dropped on
-// overflow or already released; in that case the failure carries no context.
+// A read-only view of a failure's captured context. The validity window, the meaning
+// of each field, and what a caller may not retain are in
+// docs/reference/diagnostics.md. The view is a borrowed pointer rather than a copy so
+// that inspecting a failure allocates nothing and copies no chain.
 struct context {
   bool available;
   std::source_location origin;
@@ -1574,12 +1571,12 @@ inline void print(const rich_error& e, std::FILE* out) noexcept {
 // The type-erased boundary policy.
 //
 // erased_error carries a domain-tagged error that code on the far side of a
-// component boundary can inspect without knowing the originating error category
-// and without RTTI. It is two scalars, a value and a pointer to a static domain
-// descriptor, so it is trivially copyable, register-sized, and allocates nothing.
-// The descriptor's virtual functions carry the type identity that distinguishes
-// one error family from another; only typeid and dynamic_cast need RTTI, so the
-// dispatch works under -fno-rtti.
+// component boundary can inspect without knowing the originating error category;
+// docs/reference/policies.md states what that boundary reads and what identity it
+// can rely on. The representation is two scalars and a static descriptor because a
+// boundary error must still travel in registers and allocate nothing, and the
+// descriptor's virtual dispatch is what carries type identity without RTTI, since
+// only typeid and dynamic_cast need it.
 //
 // Hosted extension. The minimal core never pulls it in, but the header follows the
 // core's freestanding-friendly discipline and includes no hosted header, so a
@@ -1649,9 +1646,9 @@ inline constexpr generic_error_domain generic_domain_instance{};
   return detail::generic_domain_instance;
 }
 
-// A type-erased, domain-tagged error. Trivially copyable, register-sized, free of
-// RTTI and of heap allocation. Boundary code reads value(), domain(), the domain
-// name, and a rendered message without knowing which component produced it.
+// A type-erased, domain-tagged error; the boundary contract is in
+// docs/reference/policies.md. The value is held beside the descriptor rather than
+// inside it so that two errors from one domain differ without a second descriptor.
 class erased_error {
   int value_ = 0;
   const error_domain* domain_ = &generic_domain();
@@ -1743,14 +1740,9 @@ static_assert(__is_trivially_copyable(erased_error),
 // toolchain that implements P2996 without yet advertising the macro.
 //
 // The two paths are guaranteed to agree on the metadata they derive, which the
-// behavioral tier checks by running both and comparing. The reflection path reads the
-// enumerators directly; the fallback recovers each enumerator's spelling by
-// instantiating a template on the value and slicing the compiler's pretty signature,
-// the established technique for compile-time enum names without reflection. The
-// fallback sees only enumerators whose value lies in a scanned range, jmpxx::reflect::
-// enum_range<E> (default -128 to 127), widened per enum by specializing that trait;
-// the reflection path has no such bound. That is the one behavioral difference, and it
-// does not arise for the small error enums this layer is built to serve.
+// behavioral tier checks by running both and comparing. Where they differ is the
+// range of enumerator values the fallback can see, which docs/reference/reflect.md
+// states along with the trait that widens it.
 #ifndef JMPXX_REFLECT_HPP
 #define JMPXX_REFLECT_HPP
 
@@ -2406,12 +2398,10 @@ inline category_table& categories() noexcept {
   return to_error_code(e);
 }
 
-// std::error_code -> jmpxx::error. A code in a jmpxx category recovers its original
-// code and domain exactly. A foreign code keeps its value and is tagged with the
-// generic domain, which is lossy for the foreign category; a program that must
-// preserve a foreign error_code carries it verbatim as result<T, std::error_code>
-// rather than narrowing it here. is_jmpxx distinguishes the two so the caller can
-// branch on which case it has.
+// std::error_code -> jmpxx::error. What each direction preserves, and what a foreign
+// category loses, is in docs/reference/interop.md. is_jmpxx is exposed beside it
+// because a caller that must not narrow a foreign code needs to ask before it
+// converts rather than after.
 [[nodiscard]] inline bool is_jmpxx(const std::error_code& ec) noexcept {
   return detail::categories().domain_of(ec.category()) >= 0;
 }
@@ -2434,10 +2424,10 @@ inline category_table& categories() noexcept {
 // callable that may throw and converts the outcome back into a result, so the rest of
 // the program keeps propagating failures through jmpxx.
 //
-// A failure that crosses out as a throw and is caught here round-trips losslessly,
-// because the error travels inside error_exception<E>, which carries the jmpxx error
-// E unchanged and is recovered as that same E. error_exception derives from
-// std::exception, so a generic catch(const std::exception&) elsewhere still sees it.
+// The error travels inside error_exception<E>, a carrier that holds E by value and
+// derives from std::exception, so a generic handler upstream still catches it while
+// the round trip recovers the same E. docs/reference/interop.md states what each
+// direction promises.
 //
 // The whole bridge exists only where exceptions are enabled, which is the opposite
 // of the primary no-exceptions use case, so it is fenced behind JMPXX_HAS_EXCEPTIONS and is absent

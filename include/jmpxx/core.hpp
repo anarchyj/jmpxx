@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // The minimal, freestanding core of jmpxx: the value-or-error transport, the
-// minimal error representation, and single-construct propagation. Including this
-// header pulls in nothing outside the freestanding subset of the standard
-// library, so it is usable where there is no heap, no exceptions, and no RTTI.
+// minimal error representation, and single-construct propagation.
 //
-// Hosted extensions (diagnostics, interop bridges, and the experimental
-// non-local escape) live under separate headers and are never reached by
-// including this one.
+// This is the include boundary. Everything hosted, the diagnostic layer, the interop
+// bridges, the reflection layer and the experimental escape, lives under a separate
+// header and is never reached from here, which is what keeps the core usable where
+// the standard library is not. docs/reference/policies.md states what that promises a
+// consumer; tests/scripts/include_boundary_check.sh is what holds it.
 #ifndef JMPXX_CORE_HPP
 #define JMPXX_CORE_HPP
 

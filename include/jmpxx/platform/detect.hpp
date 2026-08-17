@@ -7,8 +7,8 @@
 // detection makes that fence enforceable and gives the experimental unwind arm one
 // stable place to ask which ABI it is on.
 //
-// This header pulls in no standard library header and uses only the preprocessor,
-// so it is freestanding and is safe on the minimal core's include path.
+// It uses only the preprocessor, so it costs a consumer nothing to include and is
+// safe anywhere, including on the minimal core's path.
 #ifndef JMPXX_PLATFORM_DETECT_HPP
 #define JMPXX_PLATFORM_DETECT_HPP
 

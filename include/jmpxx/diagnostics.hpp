@@ -104,11 +104,10 @@ static_assert(__is_trivially_copyable(rich_error),
               "out of band, never in the error");
 
 // A landing scope owns the diagnostic context of every failure created under it.
-// It snapshots the store on construction and releases back to that snapshot on
-// destruction, so no diagnostic context outlives the scope that handles its
-// failure, and nested scopes nest correctly. In release it is an empty object. A
-// program places one where it handles failures, and reads a failure's context
-// while it is alive.
+// The lifetime contract a caller needs is in docs/reference/diagnostics.md; what the
+// code cannot show is why the bound is a store mark rather than a count of records:
+// releasing to a mark makes nesting free and makes an early return release exactly
+// what the scope added, with no bookkeeping per failure.
 class landing {
 #if JMPXX_DIAGNOSTICS_ENABLED
   int mark_;
@@ -143,10 +142,10 @@ JMPXX_ALWAYS_INLINE void note_propagation(
 namespace diagnostic {
 
 #if JMPXX_DIAGNOSTICS_ENABLED
-// A read-only view of a failure's captured context, valid only while the owning
-// landing scope is alive. The pointers alias the thread-local store and must not be
-// retained past that scope. available is false when the handle was dropped on
-// overflow or already released; in that case the failure carries no context.
+// A read-only view of a failure's captured context. The validity window, the meaning
+// of each field, and what a caller may not retain are in
+// docs/reference/diagnostics.md. The view is a borrowed pointer rather than a copy so
+// that inspecting a failure allocates nothing and copies no chain.
 struct context {
   bool available;
   std::source_location origin;

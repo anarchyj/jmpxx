@@ -136,12 +136,8 @@ struct carrier {
 #endif
 #if JMPXX_UNWIND_BACKEND_ITANIUM
   // The unwind object this scope's escape travels in. It belongs to the scope rather
-  // than to the thread because a cleanup running during one escape may open a further
-  // scope and escape inside it, and the two unwinds are then in flight at once. The
-  // runtime keeps its own state for an in-flight forced unwind inside this object, so a
-  // second escape sharing it would overwrite the first's stop function and landing and
-  // resume the outer unwind into a frame that no longer exists. Holding it here costs
-  // no allocation: the carrier is the landing frame's own automatic object, and the
+  // than to the thread, which docs/design/unwind-arm.md explains and which cost
+  // nothing: the carrier is already the landing frame's automatic object and the
   // landing outlives every unwind that targets it.
   _Unwind_Exception exception;
 #endif
@@ -175,14 +171,12 @@ inline bool& escape_in_flight() noexcept {
   return unwinding;
 }
 
-// The return type of eject. eject does not return at run time, and it is deliberately
-// not marked [[noreturn]]: the attribute is one route to the proof that deletes the
-// cleanup landing pads the forced unwind depends on, though not on its own on the
-// compilers in the support matrix. drive_unwind below states that constraint in full.
-// Returning this type instead lets a caller write `return unwind::eject(e)` in a
-// function of any return type without a "control reaches end of non-void function"
-// warning, while the conversion is never evaluated. If it ever were, it fails fast
-// rather than fabricating a value.
+// The return type of eject. eject does not return at run time and is deliberately not
+// marked [[noreturn]]; docs/design/unwind-arm.md gives the reason and the measurement.
+// This type is what makes that affordable: a caller writes `return unwind::eject(e)` in
+// a function of any return type without a "control reaches end of non-void function"
+// warning, and the conversion is never evaluated. If it ever were, it fails fast rather
+// than fabricating a value.
 struct never {
   template <class T>
   [[noreturn]] operator T() const {
@@ -236,11 +230,10 @@ inline constexpr _Unwind_Exception_Class escape_class = 0x6a6d707878457363ULL;
 // the landing frame has been reached with every intermediate destructor already run,
 // and it longjmps back into the landing.
 //
-// Identifying the landing by address rather than by a captured frame depth makes this
-// correct across ABIs and optimization levels. It depends only on
-// _Unwind_GetCFA during the active unwind, which every supported unwinder implements,
-// and not on reading a CFA outside an unwind, which the ARM EHABI unwinder reports as
-// zero. A destructor-count tier across optimization levels guards the choice.
+// Identifying the landing by address rather than by a captured frame depth is what
+// makes one implementation correct across the ABIs; docs/design/unwind-arm.md gives
+// the reasoning and the measurements. A destructor-count tier across optimization
+// levels guards the choice.
 inline _Unwind_Reason_Code stop_function(int, _Unwind_Action actions,
                                          _Unwind_Exception_Class,
                                          _Unwind_Exception*, _Unwind_Context* ctx,
@@ -267,21 +260,14 @@ inline void escape_cleanup(_Unwind_Reason_Code, _Unwind_Exception*) noexcept {
 // scope owns. It does not return at run time: it either longjmps into the landing or,
 // if the platform cannot unwind at all, fails fast.
 //
-// Two non-obvious correctness constraints are guarded by destructor-count tiers:
+// Two constraints bind this function, both guarded by destructor-count tiers and both
+// explained in docs/design/unwind-arm.md, which also carries what was measured and when:
 //   * It must not be noexcept. It is the innermost frame the forced unwind processes,
-//     and an empty exception specification on the path terminates the unwind at that
-//     frame. The same constraint binds every frame between an eject and its landing.
-//   * It must not be provably nothrow, and it is kept opaque (noinline) so a caller
-//     cannot see that its body leaves no exceptional edge. The forced unwind is
-//     invisible to the optimizer, so an eject a caller can prove never unwinds leaves
-//     no reachable cleanup landing pad at that call site, and the pads the forced
-//     unwind depends on are deleted, silently skipping destructors at -O1 and above.
-//     [[noreturn]] is declined for the same reason rather than on its own account: the
-//     attribute alone does not reach this on the compilers in the support matrix, which
-//     keep the pads while the call may still unwind, but it combines with full inlining
-//     toward the same proof. Keeping eject modeled as a call that may unwind is what
-//     makes those landing pads survive optimization. The volatile guard below keeps a
-//     path on which this function returns, which denies the optimizer both proofs.
+//     and an empty exception specification there terminates the unwind at that frame.
+//   * It must not be provably nothrow, which is why it is noinline and why the volatile
+//     guard below keeps a path on which it returns. Between them a caller cannot prove
+//     the call neither returns nor unwinds, and that proof is what would delete the
+//     landing pads this depends on.
 JMPXX_NOINLINE inline void drive_unwind(carrier* car) {
   // Zeroing the whole object initializes the words the unwinder reserves for itself
   // (the generic ABI's private_1/private_2, the EHABI unwinder cache) without naming

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Adopting jmpxx at a boundary in a codebase that already speaks the standard error
-// vocabularies. The bridges convert to and from std::expected and std::error_code
-// without losing information, and the optional-like adapters turn another library's
-// absent value into a failure in one call.
+// vocabularies: one function per bridge, each converting in and back out so the
+// round trip is visible in the output.
 #include <jmpxx/core.hpp>
 #include <jmpxx/interop/adapt.hpp>
 #include <jmpxx/interop/error_code.hpp>

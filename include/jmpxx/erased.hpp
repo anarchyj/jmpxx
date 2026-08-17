@@ -2,12 +2,12 @@
 // The type-erased boundary policy.
 //
 // erased_error carries a domain-tagged error that code on the far side of a
-// component boundary can inspect without knowing the originating error category
-// and without RTTI. It is two scalars, a value and a pointer to a static domain
-// descriptor, so it is trivially copyable, register-sized, and allocates nothing.
-// The descriptor's virtual functions carry the type identity that distinguishes
-// one error family from another; only typeid and dynamic_cast need RTTI, so the
-// dispatch works under -fno-rtti.
+// component boundary can inspect without knowing the originating error category;
+// docs/reference/policies.md states what that boundary reads and what identity it
+// can rely on. The representation is two scalars and a static descriptor because a
+// boundary error must still travel in registers and allocate nothing, and the
+// descriptor's virtual dispatch is what carries type identity without RTTI, since
+// only typeid and dynamic_cast need it.
 //
 // Hosted extension. The minimal core never pulls it in, but the header follows the
 // core's freestanding-friendly discipline and includes no hosted header, so a
@@ -78,9 +78,9 @@ inline constexpr generic_error_domain generic_domain_instance{};
   return detail::generic_domain_instance;
 }
 
-// A type-erased, domain-tagged error. Trivially copyable, register-sized, free of
-// RTTI and of heap allocation. Boundary code reads value(), domain(), the domain
-// name, and a rendered message without knowing which component produced it.
+// A type-erased, domain-tagged error; the boundary contract is in
+// docs/reference/policies.md. The value is held beside the descriptor rather than
+// inside it so that two errors from one domain differ without a second descriptor.
 class erased_error {
   int value_ = 0;
   const error_domain* domain_ = &generic_domain();

@@ -8,10 +8,10 @@
 // callable that may throw and converts the outcome back into a result, so the rest of
 // the program keeps propagating failures through jmpxx.
 //
-// A failure that crosses out as a throw and is caught here round-trips losslessly,
-// because the error travels inside error_exception<E>, which carries the jmpxx error
-// E unchanged and is recovered as that same E. error_exception derives from
-// std::exception, so a generic catch(const std::exception&) elsewhere still sees it.
+// The error travels inside error_exception<E>, a carrier that holds E by value and
+// derives from std::exception, so a generic handler upstream still catches it while
+// the round trip recovers the same E. docs/reference/interop.md states what each
+// direction promises.
 //
 // The whole bridge exists only where exceptions are enabled, which is the opposite
 // of the primary no-exceptions use case, so it is fenced behind JMPXX_HAS_EXCEPTIONS and is absent

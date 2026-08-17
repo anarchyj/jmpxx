@@ -18,14 +18,9 @@
 // toolchain that implements P2996 without yet advertising the macro.
 //
 // The two paths are guaranteed to agree on the metadata they derive, which the
-// behavioral tier checks by running both and comparing. The reflection path reads the
-// enumerators directly; the fallback recovers each enumerator's spelling by
-// instantiating a template on the value and slicing the compiler's pretty signature,
-// the established technique for compile-time enum names without reflection. The
-// fallback sees only enumerators whose value lies in a scanned range, jmpxx::reflect::
-// enum_range<E> (default -128 to 127), widened per enum by specializing that trait;
-// the reflection path has no such bound. That is the one behavioral difference, and it
-// does not arise for the small error enums this layer is built to serve.
+// behavioral tier checks by running both and comparing. Where they differ is the
+// range of enumerator values the fallback can see, which docs/reference/reflect.md
+// states along with the trait that widens it.
 #ifndef JMPXX_REFLECT_HPP
 #define JMPXX_REFLECT_HPP
 
