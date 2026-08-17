@@ -8,7 +8,7 @@
 // jmpxx result and forwards a failure with one construct; the only place that inspects
 // one is the boundary that hands a Dictionary back to script.
 //
-// The engine defines MIN, MAX, CLAMP, ABS, SIGN, ERR_FAIL_COND and an Error enum whose
+// The engine defines MIN, MAX, CLAMP, ABS, SIGN, ERR_FAIL_COND, and an Error enum whose
 // enumerators are OK and FAILED, and it builds with exceptions and RTTI off. That is
 // the environment the public surface has to survive here.
 

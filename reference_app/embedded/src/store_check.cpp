@@ -58,7 +58,7 @@ static_assert(JMPXX_VERSION >= 104, "this firmware was written against jmpxx 0.1
 
 namespace {
 
-// The failure vocabulary. The code travels in the escape payload and the offending record
+// The failure vocabulary. The code travels in the escape payload, and the offending record
 // name travels beside it, because the payload is deliberately small.
 enum fault {
   mount_failed = 1,
@@ -155,7 +155,7 @@ void note_record(const char* name) {
   g_fault_record[max_name - 1] = 0;
 }
 
-// Escape with a fault. Not marked noreturn: the arm's escape is deliberately modelled as
+// Escape with a fault. Not marked noreturn: the arm's escape is deliberately modeled as
 // a call that may unwind, and a wrapper that claimed otherwise would let the optimizer
 // remove the cleanups the escape depends on.
 void fail_with(int f, const char* record, int depth) {

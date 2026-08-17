@@ -11,7 +11,7 @@
 namespace {
 
 // The same 12-byte shape as result<int, error>: the value and the two-int error
-// share storage, a flag selects which is live. A naive baseline would instead carry
+// share storage, and a flag selects which is live. A naive baseline would instead carry
 // the value and the error side by side in separate fields and pay extra bytes; this
 // tight form removes that confound so the comparison isolates abstraction cost, not a
 // data-layout choice.

@@ -4,14 +4,18 @@
 // (JSON) output mode. Runtime probes measure transport size against a
 // no-overhead budget, count allocations on the paths declared allocation-free,
 // count destructors across a deep propagation, exercise the transport semantics,
-// and report the propagation level costs. The codegen probe compiles a fixture
+// and report the propagation-level costs. The codegen probe compiles a fixture
 // with a pinned compiler, normalizes the emitted assembly, and compares it to a
 // committed golden while reporting instruction count and stack-spill presence.
 //
 // Usage: jmpxx-verify <command> [--format=json]
-//   size | alloc | destructors | semantics | levels | all
+//   size | alloc | destructors | semantics | levels | policies | diagnostics
+//   interop | reflect | platform | abi-layout | all
+//   unwind | unwind-matrix | unwind-stress | unwind-scale
+//   release-diff | size-delta | compile-cost
 //   codegen --fixture <f> --symbol <s> --golden <g> [--arch x86_64|aarch64]
 //           [--forbid-spill] [--max-insns N] [--update]
+// Each command's own options are documented at its handler.
 #include "jmpxx/core.hpp"
 #include "jmpxx/diagnostics.hpp"
 #include "jmpxx/erased.hpp"
@@ -206,7 +210,7 @@ int probe_alloc(Fmt fmt, const std::vector<std::string>& args) {
     // The no-heap promise holds under every policy, including the rich policy with
     // its diagnostic layer live: its out-of-band store is a fixed per-thread arena,
     // so capturing an origin and a causal chain allocates nothing. The landing
-    // scope opening and closing is part of the measured region.
+    // scope's opening and closing are part of the measured region.
     {
       landing root;
       result<int, rich_error> rok = pol_chain<rich_error>(i);
@@ -223,7 +227,7 @@ int probe_alloc(Fmt fmt, const std::vector<std::string>& args) {
   Report r(fmt, "alloc");
   r.num("allocations", g_allocs);
   r.num("iterations", 1000);
-  // The minimal, rich and type-erased policies are each driven on the measured path.
+  // The minimal, rich, and type-erased policies are each driven on the measured path.
   r.num("cases.asked", 3);
   r.num("cases.known", 3);
   r.num("diagnostics_enabled", JMPXX_DIAGNOSTICS_ENABLED);

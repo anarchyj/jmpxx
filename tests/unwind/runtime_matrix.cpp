@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// One case of the arm's runtime behaviour matrix per run.
+// One case of the arm's runtime behavior matrix per run.
 //
 // How an escape interacts with a handler on its path is decided by the C++ runtime, not
 // by the arm, and the runtimes disagree: a catch-all consumes a foreign forced unwind on

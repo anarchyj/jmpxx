@@ -30,7 +30,7 @@ int main() {
   result<int, error> back = from_expected(eb);
   if (back.has_value() || back.error().code != 42) return 3;
 
-  // the optional-like adapter is freestanding too (duck-typed over a pointer).
+  // The optional-like adapter is freestanding too (duck-typed over a pointer).
   int v = 7;
   result<int, error> p = from_optional<error>(&v, [] { return error(1); });
   if (!p.has_value() || p.value() != 7) return 4;

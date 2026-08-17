@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
-// Malformed input crossing the
-// decode boundary yields a defined jmpxx failure, never an out-of-bounds read or
-// other undefined behavior, and a well-formed input decodes and bridges losslessly.
-// Run under the address and undefined-behavior sanitizers so a boundary defect is a
-// finding rather than a silent corruption. Each check returns a distinct nonzero
-// code.
+// Malformed input crossing the decode boundary yields a defined jmpxx failure,
+// never an out-of-bounds read or other undefined behavior, and a well-formed input
+// decodes and bridges losslessly. Run under the address and undefined-behavior
+// sanitizers so a boundary defect is a finding rather than a silent corruption.
+// Each check returns a distinct nonzero code.
 #include "decode_boundary.hpp"
 
 #include "jmpxx/core.hpp"
@@ -37,7 +36,7 @@ struct buf {
 }  // namespace
 
 int main() {
-  // 1. empty and short buffers are truncated, not read past. A null pointer with a
+  // 1. Empty and short buffers are truncated, not read past. A null pointer with a
   // zero size must be handled, not dereferenced.
   if (decode(nullptr, 0).error().code != boundary::truncated_header) return 1;
   {
@@ -45,7 +44,7 @@ int main() {
     if (decode(five, 5).error().code != boundary::truncated_header) return 2;
   }
 
-  // 2. an out-of-range domain tag is a defined bad_domain failure.
+  // 2. An out-of-range domain tag is a defined bad_domain failure.
   {
     buf x;
     x.byte(200);  // domain > 16
@@ -55,7 +54,7 @@ int main() {
     if (r.has_value() || r.error().code != boundary::bad_domain) return 3;
   }
 
-  // 3. a payload length that overruns the buffer is rejected, not trusted into an
+  // 3. A payload length that overruns the buffer is rejected, not trusted into an
   // over-read. The sanitizer would catch the resulting over-read if this check were
   // missing.
   {
@@ -67,7 +66,7 @@ int main() {
     if (r.has_value() || r.error().code != boundary::payload_overruns) return 4;
   }
 
-  // 4. a payload length beyond the fixed capacity is rejected even if the buffer is
+  // 4. A payload length beyond the fixed capacity is rejected even if the buffer is
   // long enough, so the fixed destination never overflows.
   {
     buf x;
@@ -79,7 +78,7 @@ int main() {
     if (r.has_value() || r.error().code != boundary::payload_overruns) return 5;
   }
 
-  // 5. a well-formed buffer decodes exactly, including a negative code reassembled
+  // 5. A well-formed buffer decodes exactly, including a negative code reassembled
   // from its bytes, and the bounded payload is copied in full.
   {
     buf x;
@@ -93,13 +92,13 @@ int main() {
     if (r.value().payload_len != 4 || std::memcmp(r.value().payload, "abcd", 4) != 0)
       return 8;
 
-    // the decoded error bridges to std::error_code and back losslessly.
+    // The decoded error bridges to std::error_code and back losslessly.
     error decoded(r.value().code, r.value().domain);
     std::error_code ec = to_error_code(decoded);
     if (from_error_code(ec) != decoded) return 9;
   }
 
-  // 6. exactly the header with a zero payload is the boundary case between truncated
+  // 6. Exactly the header with a zero payload is the boundary case between truncated
   // and valid, and decodes to an empty payload.
   {
     buf x;

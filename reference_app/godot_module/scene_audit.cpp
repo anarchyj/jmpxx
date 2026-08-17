@@ -17,7 +17,7 @@ static_assert(JMPXX_VERSION >= 104,
 // The engine's macros are live here. Naming them keeps the check honest: if a future
 // engine version stops defining one, this module stops proving what it claims to. This
 // engine takes likely and unlikely, two ordinary English words, and SWAP, and it moved
-// MIN, MAX and CLAMP from macros to constexpr templates, which is why they are not in
+// MIN, MAX, and CLAMP from macros to constexpr templates, which is why they are not in
 // the list.
 #if !defined(SWAP) || !defined(likely) || !defined(unlikely) || !defined(ERR_FAIL_COND)
 #error "the engine's own macros are not in scope; this module is not proving anything"

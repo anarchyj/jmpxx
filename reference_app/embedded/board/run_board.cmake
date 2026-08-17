@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Boot the firmware under system emulation and read its verdict. The board reports through
-# semihosting and the emulator does not carry the program's exit code, so the printed
+# semihosting, and the emulator does not carry the program's exit code, so the printed
 # verdict is the result. Semihosting output can arrive on either stream depending on how
 # the emulator was built, so both are read.
 execute_process(

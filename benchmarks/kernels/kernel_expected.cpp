@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // The std::expected kernel: the depth-8 chain expressed with C++23 std::expected and
 // the hand-threaded check-and-return propagation a programmer writes, since the
-// standard provides no TRY construct. Built with exceptions
-// off, so the kernel never calls expected::value (the one throwing member) and uses
-// has_value, operator*, error, and std::unexpected, which the freestanding-expected
-// research confirmed are the exception-free surface.
+// standard provides no TRY construct. Built with exceptions off, so the kernel never
+// calls expected::value (the one throwing member) and uses has_value, operator*,
+// error, and std::unexpected, which the freestanding-expected research confirmed are
+// the exception-free surface.
 #include "spec.hpp"
 
 #include <version>

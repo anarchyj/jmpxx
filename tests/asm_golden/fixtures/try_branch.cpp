@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Fixture: the zero-cost propagation level next to its hand-written equivalent.
 // jx_try_branch propagates with JMPXX_TRY; jx_hand_branch threads a status flag
-// by hand. The committed goldens let the showcase demonstrate that the jmpxx
+// by hand. The committed goldens hold the two forms to the same shape: the jmpxx
 // form adds only the branch the hand-written form already has.
 #include "jmpxx/core.hpp"
 

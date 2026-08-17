@@ -5,7 +5,7 @@
 # of the build still completes.
 cmake_minimum_required(VERSION 3.20)
 
-# Pin to the LLVM toolset whose development package is complete on this environment, while
+# Pin to the LLVM toolset whose development package is complete in this environment, while
 # respecting an explicit -DLLVM_DIR override. Ubuntu installs the CMake config under
 # /usr/lib/llvm-<n>/lib/cmake.
 if(NOT LLVM_DIR AND EXISTS /usr/lib/llvm-18/lib/cmake/llvm)

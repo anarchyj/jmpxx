@@ -3,7 +3,7 @@
 
 A Godot module whose error spine is jmpxx, built inside the engine by the engine's own
 build and run headless. It is the field-use exercise for a consumer whose build system,
-language standard, macro conventions and runtime were all decided without reference to
+language standard, macro conventions, and runtime were all decided without reference to
 this library.
 
 The module registers `JmpxxSceneAudit`, a class script can call, which walks a scene tree
@@ -15,13 +15,13 @@ in `audit()` turns the outcome into the `Dictionary` script receives.
 ## Why an engine
 
 The audience jmpxx is written for includes game engines, and this one is a fair
-representative: it compiles with exceptions off, it takes `likely`, `unlikely` and `SWAP`
+representative: it compiles with exceptions off, it takes `likely`, `unlikely`, and `SWAP`
 as macros, it defines `NDEBUG` even for an editor build, and it builds with SCons rather
 than CMake. None of that was chosen to suit a library.
 
 ## Building
 
-The module drops into an engine checkout and the engine builds it:
+The module drops into an engine checkout, and the engine builds it:
 
 ```sh
 cp -r reference_app/godot_module <godot>/modules/jmpxx_audit
@@ -56,7 +56,7 @@ engine keeps.
 ## What it checks about the library
 
 The module holds jmpxx to its documented layout in the engine's own build, with static
-assertions on the size, alignment and trivial copyability of the transport and the minimal
+assertions on the size, alignment, and trivial copyability of the transport and the minimal
 error, and on the version the header carries. The layout gate in the library's own suite
 measures one host cell; these assertions answer the same question in a consumer's build,
 and a documented layout that does not hold here stops the engine from building.

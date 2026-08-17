@@ -10,7 +10,7 @@
 # running together exhausted the development host.
 #
 # Neither setting adds evidence. The check reads the exit status, and where a report is
-# wanted the clean run produces it with symbolization intact. Sourcing this keeps the
+# wanted, the clean run produces it with symbolization intact. Sourcing this keeps the
 # expected deaths cheap and deterministic.
 ulimit -c 0 2>/dev/null || true
 export DEBUGINFOD_URLS=

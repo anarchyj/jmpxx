@@ -39,7 +39,7 @@ struct access {
 // std::expected<access, glz::error_ctx>; from_expected converts it to a jmpxx result
 // over the same error type without loss, so a malformed policy yields a defined
 // failure carrying glaze's parse diagnostic rather than a thrown exception. glaze
-// runs with exceptions disabled, which is the configuration the application builds.
+// runs with exceptions disabled, which is the configuration the application builds in.
 [[nodiscard]] inline jmpxx::result<access, glz::error_ctx> parse(
     std::string_view json) {
   return jmpxx::from_expected(glz::read_json<access>(json));

@@ -39,14 +39,14 @@ fetch() {
 }
 
 # The secure-firmware convention: short uppercase function-like macros in the namespace
-# a C++ header would otherwise use for identifiers. U, UL, ULL, BIT, MIN, MAX and
+# a C++ header would otherwise use for identifiers. U, UL, ULL, BIT, MIN, MAX, and
 # ARRAY_SIZE all come from here.
 fetch trusted-firmware-a \
   https://codeload.github.com/ARM-software/arm-trusted-firmware/tar.gz/refs/tags/v2.11.0 \
   arm-trusted-firmware-2.11.0/include
 
 # The embedded-RTOS convention, which overlaps the firmware one and differs in what it
-# spells: MIN, MAX, CLAMP, ARRAY_SIZE, CONTAINER_OF, IS_ENABLED and BIT.
+# spells: MIN, MAX, CLAMP, ARRAY_SIZE, CONTAINER_OF, IS_ENABLED, and BIT.
 fetch zephyr \
   https://codeload.github.com/zephyrproject-rtos/zephyr/tar.gz/refs/tags/v3.7.0 \
   zephyr-3.7.0/include

@@ -46,7 +46,7 @@ set(JMPXX_MSAN_LIBCXX_ROOT "" CACHE PATH
 find_package(Threads REQUIRED)
 
 # Compile-and-run tiers: static and constexpr assert at translation time (a
-# failed assertion fails the build), the property tier exercises randomized
+# failed assertion fails the build). The property tier exercises randomized
 # sequences at run time.
 add_executable(jmpxx_static static/static_asserts.cpp)
 add_executable(jmpxx_constexpr constexpr/constexpr_tests.cpp)
@@ -246,7 +246,7 @@ if(NOT MSVC)
 endif()
 
 # The public headers survive a consumer whose own headers came first. The Trusted Firmware
-# and OP-TEE convention defines U, UL and ULL as integer-suffix macros, which collided with
+# and OP-TEE convention defines U, UL, and ULL as integer-suffix macros, which collided with
 # a type alias the transport used in a call-shaped position; a firmware consumer could not
 # include jmpxx after their own headers. Compiling this fixture is the test.
 add_executable(jmpxx_firmware_macros interop/firmware_macros.cpp)
@@ -287,11 +287,11 @@ if(JMPXX_GXX13 AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     ${CMAKE_BINARY_DIR}/interop_fs_expected)
 endif()
 
-# Boundary-input validation. The behavioral tier
-# feeds malformed serialized input across the decode boundary under the address and
-# undefined-behavior sanitizers, so an out-of-bounds read is a finding rather than a
-# silent corruption. The fuzz tier drives the boundary and the bridges with random
-# input under libFuzzer, bounded for continuous integration. Both are Clang tiers.
+# Boundary-input validation. The behavioral tier feeds malformed serialized input
+# across the decode boundary under the address and undefined-behavior sanitizers,
+# so an out-of-bounds read is a finding rather than a silent corruption. The fuzz
+# tier drives the boundary and the bridges with random input under libFuzzer,
+# bounded for continuous integration. Both are Clang tiers.
 if(UNIX AND JMPXX_CLANGXX)
   add_test(NAME interop.boundary_sanitizer COMMAND bash
     ${CMAKE_SOURCE_DIR}/tests/scripts/sanitizer_check.sh

@@ -133,7 +133,7 @@ jobs:
       - run: sudo rm -f /etc/apt/sources.list.d/microsoft* /etc/apt/sources.list.d/azure*; sudo apt-get update && sudo apt-get install -y ninja-build clang-18
       # The arm's own tiers: link-time optimization, the emitted unwind metadata,
       # concurrency under the thread sanitizer, the reentrancy contract, the per-runtime
-      # behaviour matrix, the long-run stress campaign, and thread scaling. Each has an
+      # behavior matrix, the long-run stress campaign, and thread scaling. Each has an
       # inverted case that must fail, so the job proves the gates rather than the arm alone.
       - name: configure
         run: cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF
@@ -166,7 +166,7 @@ jobs:
         run: |
           ${{ matrix.cxx }} -std=c++20 -O2 -static -Iinclude tests/unwind/unwind_exec.cpp -o uexec
           ${{ matrix.qemu }} ./uexec
-      - name: the arm's per-runtime behaviour on this architecture
+      - name: the arm's per-runtime behavior on this architecture
         # Each case runs as its own process, because a case whose declared outcome is a
         # termination kills the process that runs it. Every architecture must produce the
         # same rows; a divergence is contract material, not a flake.

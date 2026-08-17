@@ -4,8 +4,8 @@
 // failure-ratio sweep and a depth sweep, and reports each mechanism's per-call latency
 // distribution by median and high percentile, beside the delta against the hand-written
 // branch jmpxx claims to match. It also carries the perf gate: a relative bound on jmpxx's
-// latency against a co-measured hand-written baseline, with an inverted self-test from a deliberately slowed
-// kernel, and a callgrind mode that counts instructions deterministically.
+// latency against a co-measured hand-written baseline, with an inverted self-test from a
+// deliberately slowed kernel, and a callgrind mode that counts instructions deterministically.
 //
 // Measurement discipline follows the established practice for tiny operations. The kernel
 // frames are non-inlined so the propagation crosses real stack frames rather than collapsing
@@ -174,7 +174,7 @@ const char* fail_label(double frac) {
 
 // run: the full distribution sweep. For each depth and failure ratio, measure every
 // available mechanism and report median, p90, and p99 per call, with the ratio against the
-// hand-written baseline, so the comparison shows where each mechanism stands including the
+// hand-written baseline, so the comparison shows where each mechanism stands, including the
 // cells where jmpxx is not the fastest.
 int cmd_run(Fmt fmt, int epochs, long long target_ns, std::size_t pool) {
   const double ratios[] = {0.0, 0.01, 0.5, 1.0};

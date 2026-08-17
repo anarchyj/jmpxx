@@ -45,7 +45,7 @@ cmake --install build/install --prefix "$PREFIX"
 export TA_DEV_KIT_DIR=<optee_os>/out/arm/export-ta_arm64
 # The workspace's own toolchain, not a distribution cross-compiler. A distribution
 # aarch64 toolchain links its libstdc++ copy of std::random_device into the trusted
-# application and then fails on getentropy, open, read and ioctl, which a trusted
+# application and then fails on getentropy, open, read, and ioctl, which a trusted
 # application's C library does not provide.
 export CROSS_COMPILE=<workspace>/toolchains/aarch64/bin/aarch64-none-linux-gnu-
 export JMPXX_INCLUDE_DIR="$PREFIX/include"
@@ -72,12 +72,15 @@ Driven on the full stack, Trusted Firmware-A through BL1, BL2 and BL31, OP-TEE O
 U-Boot and Linux, the client reports:
 
 ```
+  layout      secure world: sizeof(error)=8 result<int,error>=12 alignof(error)=4 jmpxx 0.1.4
   valid        verified, 3 entries
+  bad digest   invoke failed: 0xffff3024 origin 0x3
   valid again  verified, 3 entries
   dangling     fault 7 at depth 0 in 'absent': a referenced entry is absent
   cycle        fault 8 at depth 2 in 'one': the references form a cycle
   bad header   fault 2 at depth 0 in 'root': the header is not MFST
   truncated    fault 1 at depth 0 in 'boot': the manifest is truncated
+  valid last   verified, 3 entries
 ```
 
 `cycle` is the escape the arm exists for: a fault found two levels down, unwinding through

@@ -138,7 +138,7 @@ UNFALSIFIABLE_DEFENCES = {
 ACCOUNTING_FLOOR = 1.0
 
 # A gate whose result depends on how the sweep was invoked declares the condition, and
-# the sweep honours it. A latency measurement taken while the rest of the sweep loads
+# the sweep honors it. A latency measurement taken while the rest of the sweep loads
 # the machine reports the load, which is a gate failing for a reason unrelated to what
 # it measures.
 SERIAL_GATES = {

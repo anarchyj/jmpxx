@@ -37,7 +37,7 @@ result<Tag<N>, error> use(int x) {
   return Tag<N>{t.v + 1, {}};
 }
 
-// Recursively expand to instantiate use<0..Limit>, and through them make<N> and
+// Recursively expand to instantiate use<0..limit>, and through them make<N> and
 // result<Tag<N>, error> for every N, so the frontend pays for hundreds of transports.
 template <int N>
 int expand(int x) {

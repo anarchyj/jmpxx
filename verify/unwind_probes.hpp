@@ -21,7 +21,7 @@ namespace jv {
 // C++ throw at the same depth. Accepts --iters, --bound-factor, and --inject-jitter.
 int probe_unwind(Fmt fmt, const std::vector<std::string>& args);
 
-// Each case of the per-runtime behaviour matrix, run as its own process through the
+// Each case of the per-runtime behavior matrix, run as its own process through the
 // fixture named by --fixture. Accepts --inject-silent-loss.
 int probe_unwind_matrix(Fmt fmt, const std::vector<std::string>& args);
 

@@ -3,7 +3,7 @@
 # platform unwinder, the optimizer, and the C++ runtime rather than on the library's own
 # control flow, so it carries more tiers than any other capability: execution at several
 # optimization levels, link-time optimization, the emitted unwind metadata, concurrency,
-# reentrancy, the per-runtime behaviour matrix, long-run stress, thread scaling, the
+# reentrancy, the per-runtime behavior matrix, long-run stress, thread scaling, the
 # sad-path benchmark, and the payload-boundary fuzz. Each gate here has an inverted case.
 
 # Execution at several optimization levels, because a forced unwind that elides a cleanup
@@ -164,7 +164,7 @@ if(UNIX)
     ${CMAKE_SOURCE_DIR}/include/jmpxx)
 endif()
 
-# The per-runtime behaviour matrix. How an escape meets a handler or a barrier on its
+# The per-runtime behavior matrix. How an escape meets a handler or a barrier on its
 # path is the runtime's answer, not the arm's, and the runtimes disagree, so each case
 # runs as its own process and the harness records what came back. The fixture is portable
 # so the same cases can be run on the cells where the harness is not built, and the
@@ -193,25 +193,20 @@ set_tests_properties(unwind.stress PROPERTIES TIMEOUT 600)
 set_tests_properties(unwind.stress.teeth PROPERTIES WILL_FAIL TRUE TIMEOUT 300)
 
 # This measurement and the sad-path distribution below both need the machine to
-# themselves: run beside the rest of the suite they report its load, not the arm. They
-# declare that condition in their output and the sweep honours it here.
+# themselves: run beside the rest of the suite, they report its load, not the arm. They
+# declare that condition in their output and the sweep honors it here.
 add_test(NAME unwind.scale COMMAND jmpxx-verify unwind-scale --max-threads 8 --iters 3000)
 add_test(NAME unwind.scale.teeth COMMAND jmpxx-verify unwind-scale
   --max-threads 8 --iters 2000 --inject-serialization)
 set_tests_properties(unwind.scale PROPERTIES RUN_SERIAL TRUE TIMEOUT 600)
 set_tests_properties(unwind.scale.teeth PROPERTIES RUN_SERIAL TRUE WILL_FAIL TRUE TIMEOUT 300)
 
-# Unwind sad-path benchmark and the destructor-count surface, driven through the harness.
-# The committed run asserts the forced-unwind sad path stays within its determinism bound
-# and reports the distribution beside a C++ throw at
-# the same depth. The inverted run injects a non-deterministic cleanup, which drives the
-# ratio past the bound and must fail the same gate's negative path.
-# The body-frame defence, and the falsification attempt it has never survived being
-# given. The ordinary build must destroy every object the escape's body constructed; the
-# attempt forces the trampoline inline, which is the shape the defence prevents, and
-# records that it still balances. That is why this gate is recorded as an unfalsifiable
-# defence rather than carrying an inverted case, and the attempt is re-run every sweep
-# so a compiler that starts breaking it is noticed.
+# This gate holds the body-frame defence together with the falsification attempt the
+# defence has always withstood. The ordinary build must destroy every object the escape's
+# body constructed; the attempt forces the trampoline inline, which is the shape the
+# defence prevents, and records that it still balances. That is why this gate is recorded
+# as an unfalsifiable defence rather than carrying an inverted case, and the attempt is
+# re-run every sweep so a compiler that starts breaking it is noticed.
 if(UNIX AND NOT MSVC)
   add_test(NAME unwind.body_frame COMMAND bash
     ${CMAKE_SOURCE_DIR}/tests/scripts/unwind_body_frame_check.sh
@@ -220,6 +215,11 @@ if(UNIX AND NOT MSVC)
     ${CMAKE_BINARY_DIR}/unwind_body_frame)
 endif()
 
+# Unwind sad-path benchmark and the destructor-count surface, driven through the harness.
+# The committed run asserts the forced-unwind sad path stays within its determinism bound
+# and reports the distribution beside a C++ throw at the same depth. The inverted run
+# injects a non-deterministic cleanup, which drives the ratio past the bound and must
+# fail the same gate's negative path.
 add_test(NAME unwind.benchmark COMMAND jmpxx-verify unwind --iters 40000)
 set_tests_properties(unwind.benchmark PROPERTIES RUN_SERIAL TRUE)
 add_test(NAME unwind.benchmark.teeth COMMAND jmpxx-verify unwind --inject-jitter --iters 20000)

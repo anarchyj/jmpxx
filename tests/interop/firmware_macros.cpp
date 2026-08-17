@@ -4,7 +4,7 @@
 // A library header is included into someone else's translation unit, after whatever they
 // already included, so an identifier it uses in a call-shaped position is exposed to every
 // function-like macro they have defined. The Trusted Firmware and OP-TEE projects define
-// U, UL and ULL in their stdint.h as integer-suffix macros, and that convention reaches a
+// U, UL, and ULL in their stdint.h as integer-suffix macros, and that convention reaches a
 // large part of this library's audience. Before this fixture existed, the transport's
 // monadic operations used U as a type alias and a firmware consumer could not include
 // jmpxx after their own headers at all.

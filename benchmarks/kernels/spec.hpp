@@ -11,9 +11,9 @@
 // real stack frame, so the propagation actually crosses frame boundaries; without
 // it the optimizer collapses an entire chain into a few branchless instructions and
 // every mechanism measures as free. The codegen golden checks that optimized case; it
-// tells nothing about per-hop mechanism cost. The
-// depth and the per-frame work are fixed constants every kernel reads, so no kernel
-// can quietly do less work than another.
+// says nothing about per-hop mechanism cost. The depth and the per-frame work are
+// fixed constants every kernel reads, so no kernel can quietly do less work than
+// another.
 #ifndef JMPXX_BENCH_SPEC_HPP
 #define JMPXX_BENCH_SPEC_HPP
 

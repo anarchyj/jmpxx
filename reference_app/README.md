@@ -55,13 +55,13 @@ cmake --build build
 ctest --test-dir build
 ```
 
-toml++ is fetched automatically with FetchContent.
+toml++ and glaze are fetched automatically with FetchContent.
 
 ## Running
 
 ```sh
-./build/config_validate_minimal configs/valid.toml          # prints the validated config
-./build/config_validate_rich    configs/missing_host.toml   # reports the failure with its origin and chain
+./build/config_validate_minimal  configs/valid.toml          # prints the validated config
+./build/config_validate_rich     configs/missing_host.toml   # reports the failure with its origin and chain
 ./build/config_validate_hardened configs/missing_host.toml   # same app under extensive hardening
-./build/config_validate_rich    configs/invalid_limits.toml # reports the type-erased boundary error
+./build/config_validate_rich     configs/invalid_limits.toml # reports the type-erased boundary error
 ```

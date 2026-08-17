@@ -47,7 +47,7 @@ set_target_properties(storecheck PROPERTIES SUFFIX ".elf")
 find_program(STORECHECK_QEMU qemu-system-arm)
 if(STORECHECK_QEMU)
   enable_testing()
-  # The board reports through semihosting and the emulator does not carry the program's
+  # The board reports through semihosting, and the emulator does not carry the program's
   # exit code, so the printed verdict is what the check reads.
   add_test(NAME storecheck.board COMMAND ${CMAKE_COMMAND}
     -DQEMU=${STORECHECK_QEMU} -DIMAGE=$<TARGET_FILE:storecheck>

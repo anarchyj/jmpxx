@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// The harness's unwind-arm probes: cost, per-runtime behaviour, long-run stress, and
+// The harness's unwind-arm probes: cost, per-runtime behavior, long-run stress, and
 // thread scaling. Kept in their own unit because the arm is the one capability whose
 // correctness rests on the platform runtime, so observing it takes more than a single
 // probe and none of it belongs to the portable surface's probes.
@@ -400,7 +400,7 @@ int probe_unwind_matrix(Fmt fmt, const std::vector<std::string>& args) {
     }
     if (k)
       r.fail(name + ": this runtime is recorded as producing '" + k->outcome +
-             "' and produced '" + outcome + "'; the recorded behaviour changed");
+             "' and produced '" + outcome + "'; the recorded behavior changed");
     else
       r.fail(name + ": outcome '" + outcome + "' is outside the safe set (" +
              row->allowed + ")");
