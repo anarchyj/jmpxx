@@ -15,4 +15,11 @@
  * outcome in the second parameter's values: a fault code and the depth it was found at. */
 #define TA_MANIFEST_CMD_VERIFY 0
 
+/* Report the library layout and version the secure side was built against, in the first
+ * parameter's values, so the normal world can hold what the documentation states against
+ * what the secure world actually compiled. value.a packs sizeof(error) and
+ * sizeof(result<int, error>); value.b carries the version as major*10000 + minor*100 +
+ * patch. */
+#define TA_MANIFEST_CMD_LAYOUT 1
+
 #endif /* JMPXX_MANIFEST_TA_H */

@@ -166,6 +166,41 @@ static void run(const char *label, struct builder *b, uint32_t want_fault) {
   expect(path_left == 0, "the trusted application left its reference path empty");
 }
 
+/* Ask the secure side for the layout and version it compiled against and print them. A
+ * mismatch with what the documentation states is a claim about the wrong build, and it
+ * is visible from here rather than only in the library's own suite. */
+static void report_layout(void) {
+  TEEC_Session session;
+  TEEC_Operation op;
+  TEEC_UUID uuid = TA_MANIFEST_UUID;
+  uint32_t origin = 0;
+
+  if (TEEC_OpenSession(&g_ctx, &session, &uuid, TEEC_LOGIN_PUBLIC, NULL, NULL,
+                       &origin) != TEEC_SUCCESS) {
+    printf("  layout      could not open a session\n");
+    return;
+  }
+  memset(&op, 0, sizeof(op));
+  op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_OUTPUT, TEEC_NONE, TEEC_NONE, TEEC_NONE);
+  if (TEEC_InvokeCommand(&session, TA_MANIFEST_CMD_LAYOUT, &op, &origin) != TEEC_SUCCESS) {
+    printf("  layout      the secure side did not report its layout\n");
+    TEEC_CloseSession(&session);
+    return;
+  }
+  printf("  layout      secure world: sizeof(error)=%u result<int,error>=%u "
+         "alignof(error)=%u jmpxx %u.%u.%u\n",
+         op.params[0].value.a & 0xffu, (op.params[0].value.a >> 8) & 0xffu,
+         (op.params[0].value.a >> 16) & 0xffu, op.params[0].value.b / 10000u,
+         (op.params[0].value.b / 100u) % 100u, op.params[0].value.b % 100u);
+  if ((op.params[0].value.a & 0xffu) != 8u ||
+      ((op.params[0].value.a >> 8) & 0xffu) != 12u) {
+    printf("  layout      FAIL: the secure world does not observe the documented "
+           "layout\n");
+    ++failures;
+  }
+  TEEC_CloseSession(&session);
+}
+
 int main(void) {
   struct builder b;
 
@@ -174,6 +209,11 @@ int main(void) {
     printf("verify_client: no TEE context; is OP-TEE running?\n");
     return 1;
   }
+
+  /* Before anything is verified: what the secure side observes about the library it
+   * compiled against, held against what this client was told to expect. A documented
+   * layout is a claim about a target, and this is the target. */
+  report_layout();
 
   /* A chain three deep that verifies. */
   begin(&b, 3, "MFST", 1);

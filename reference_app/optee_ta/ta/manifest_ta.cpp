@@ -64,6 +64,28 @@ extern "C" {
 
 #include "manifest_ta.h"
 
+// What the library documents about itself, checked by this trusted application's own
+// compiler inside the secure world. The layout gate measures one 64-bit host cell; a
+// firmware consumer's question is what the types are on the target their code runs on,
+// and this build answers it on AArch64 in a trusted application. A documented layout
+// that does not hold here stops the trusted application from building.
+static_assert(sizeof(jmpxx::error) == 8, "the minimal error is documented as eight bytes");
+static_assert(alignof(jmpxx::error) == 4,
+              "the minimal error is documented as four-byte aligned");
+static_assert(sizeof(jmpxx::result<int, jmpxx::error>) == 12,
+              "result<int, error> is documented as twelve bytes");
+static_assert(std::is_trivially_copyable_v<jmpxx::result<int, jmpxx::error>>,
+              "the transport is documented as trivially copyable over a trivial value");
+static_assert(JMPXX_VERSION >= 104,
+              "this trusted application was written against jmpxx 0.1.4");
+
+// The secure world's own headers are in scope before the library, which is the order
+// that found the collision this integration is known for. Naming one of the macros the
+// firmware convention defines keeps that order honest.
+#ifndef TEE_SUCCESS
+#error "the trusted-application headers are not in scope; the include order is gone"
+#endif
+
 namespace {
 
 // The faults a verification can report. The code travels in the escape payload with the
@@ -330,6 +352,22 @@ void TA_CloseSessionEntryPoint(void*) {}
 
 TEE_Result TA_InvokeCommandEntryPoint(void*, uint32_t cmd, uint32_t types,
                                       TEE_Param params[4]) {
+  // What the secure side observes about the library it compiled against. The layout
+  // gate runs on one host cell; this answers the same question from inside the secure
+  // world, on the target and toolchain that actually ship.
+  if (cmd == TA_MANIFEST_CMD_LAYOUT) {
+    const uint32_t layout_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+                                                  TEE_PARAM_TYPE_NONE,
+                                                  TEE_PARAM_TYPE_NONE,
+                                                  TEE_PARAM_TYPE_NONE);
+    if (types != layout_types) return TEE_ERROR_BAD_PARAMETERS;
+    params[0].value.a =
+        static_cast<uint32_t>(sizeof(jmpxx::error)) |
+        (static_cast<uint32_t>(sizeof(jmpxx::result<int, jmpxx::error>)) << 8) |
+        (static_cast<uint32_t>(alignof(jmpxx::error)) << 16);
+    params[0].value.b = static_cast<uint32_t>(JMPXX_VERSION);
+    return TEE_SUCCESS;
+  }
   if (cmd != TA_MANIFEST_CMD_VERIFY) return TEE_ERROR_NOT_SUPPORTED;
   const uint32_t expected = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
                                             TEE_PARAM_TYPE_VALUE_OUTPUT,

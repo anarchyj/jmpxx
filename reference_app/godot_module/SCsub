@@ -1,0 +1,26 @@
+#!/usr/bin/env python
+
+Import("env")
+Import("env_modules")
+
+env_jmpxx = env_modules.Clone()
+
+# jmpxx requires C++20 and the engine builds at C++17, so this module raises the
+# standard for its own translation units. Append, not Prepend: the engine prepends its
+# own -std=gnu++17, and the last -std on the command line is the one that takes effect.
+# Prepending here produced "-std=gnu++20 -std=gnu++17", which built the module at C++17
+# and left the library refusing it with its language-version error.
+env_jmpxx.Append(CXXFLAGS=["-std=gnu++20"])
+
+# The library arrives as the released single header dropped into a directory, which is
+# the channel a build that is not CMake reaches for.
+env_jmpxx.Prepend(CPPPATH=["/tmp/jmpxx-release-drop"])
+
+# The engine defines NDEBUG even for an editor build, which turns the diagnostic layer
+# off by default. This module wants a failure's origin and the path it took, so it asks
+# for the layer by name rather than inheriting the engine's answer.
+env_jmpxx.Append(CPPDEFINES=[("JMPXX_DIAGNOSTICS_ENABLED", 1)])
+
+module_obj = []
+env_jmpxx.add_source_files(module_obj, "*.cpp")
+env.modules_sources += module_obj

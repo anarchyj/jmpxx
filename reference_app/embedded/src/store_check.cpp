@@ -23,6 +23,7 @@
 // have is exception cleanup tables, which the arm requires and which the linker script
 // keeps as .ARM.exidx.
 #include <jmpxx/core.hpp>
+#include <jmpxx/erased.hpp>
 #include <jmpxx/unwind.hpp>
 
 extern "C" {
@@ -32,6 +33,28 @@ extern "C" {
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
+// What the library documents about itself, checked here by this board's compiler on this
+// board's ABI. The layout gate runs on one 64-bit host, and a firmware consumer's
+// question is what the types are on the target they ship. If a documented layout is
+// wrong on a 32-bit freestanding target, this firmware stops building.
+static_assert(sizeof(jmpxx::error) == 8, "the minimal error is documented as eight bytes");
+static_assert(alignof(jmpxx::error) == 4,
+              "the minimal error is documented as four-byte aligned");
+static_assert(offsetof(jmpxx::error, code) == 0 && offsetof(jmpxx::error, domain) == 4,
+              "the minimal error's documented field offsets do not hold here");
+static_assert(sizeof(jmpxx::result<int, jmpxx::error>) == 12,
+              "result<int, error> is documented as twelve bytes");
+static_assert(std::is_trivially_copyable_v<jmpxx::result<int, jmpxx::error>>,
+              "the transport is documented as trivially copyable over a trivial value");
+static_assert(JMPXX_VERSION >= 104, "this firmware was written against jmpxx 0.1.4");
+
+// The filesystem's own headers are in scope before jmpxx, which is the order a firmware
+// consumer produces. Naming one of its macros keeps that honest: if the include order
+// ever stops holding, this stops proving anything.
+#ifndef LFS_NAME_MAX
+#error "the filesystem's headers are not in scope; the include order this checks is gone"
+#endif
 
 namespace {
 
@@ -338,6 +361,14 @@ void run(const char* entry, int expected_fault, const char* expected_record) {
 int main() {
   std::printf("storecheck: jmpxx %s, unwind arm available=%d\n", JMPXX_VERSION_STRING,
               static_cast<int>(jmpxx::unwind::available()));
+  // The board reports the layout it observes, so the figures the documentation states
+  // are readable from a run on the target rather than only from a host measurement.
+  std::printf("storecheck: on this board sizeof(error)=%u result<int,error>=%u "
+              "erased_error=%u alignof(error)=%u\n",
+              static_cast<unsigned>(sizeof(jmpxx::error)),
+              static_cast<unsigned>(sizeof(jmpxx::result<int, jmpxx::error>)),
+              static_cast<unsigned>(sizeof(jmpxx::erased_error)),
+              static_cast<unsigned>(alignof(jmpxx::error)));
   stage_image();
 
   run("boot", 0, "");

@@ -43,7 +43,11 @@ cmake -S . -B build/install -DJMPXX_BUILD_TESTS=OFF -DJMPXX_BUILD_VERIFY=OFF
 cmake --install build/install --prefix "$PREFIX"
 
 export TA_DEV_KIT_DIR=<optee_os>/out/arm/export-ta_arm64
-export CROSS_COMPILE=aarch64-linux-gnu-
+# The workspace's own toolchain, not a distribution cross-compiler. A distribution
+# aarch64 toolchain links its libstdc++ copy of std::random_device into the trusted
+# application and then fails on getentropy, open, read and ioctl, which a trusted
+# application's C library does not provide.
+export CROSS_COMPILE=<workspace>/toolchains/aarch64/bin/aarch64-none-linux-gnu-
 export JMPXX_INCLUDE_DIR="$PREFIX/include"
 # The kit builds with no default include search, so the toolchain's C++ headers are named.
 export JMPXX_TA_CXX_INCLUDE=<toolchain>/aarch64-none-linux-gnu/include/c++/<version>
