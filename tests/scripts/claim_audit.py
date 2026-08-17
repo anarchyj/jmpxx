@@ -59,11 +59,66 @@ def load_ledger(path):
 
 
 def registered_tests(build_dir):
-    """Every CTest test name in a built tree. A gate disposition must name one of
-    these, so a claim cannot point at a test that was renamed or removed."""
+    """Every CTest test name in a built tree. A gate disposition must name a test that
+    exists, so a claim cannot point at one that was renamed or removed."""
     out = subprocess.run(["ctest", "--test-dir", build_dir, "--show-only=json-v1"],
                          capture_output=True, text=True, check=True).stdout
     return {t["name"] for t in json.loads(out).get("tests", [])}
+
+
+DECLARED = re.compile(r"add_test\(\s*NAME\s+([^\s)]+)")
+GENERATED = re.compile(r"\$\{[^}]+\}")
+
+# Where this project registers its own tests. Named rather than discovered, because a
+# walk of the whole tree also reads whatever a local build directory fetched, and a
+# dependency's test names are not this project's.
+SOURCE_ROOTS = ("CMakeLists.txt", "tests", "benchmarks", "examples", "packaging",
+                "reference_app", "lint", "verify", "cmake", "test_package")
+
+
+def declared_tests(root):
+    """Every test name the CMake sources register, as literal names and as patterns.
+
+    A built tree only registers the tests its host can run, so reading the roster alone
+    makes this check answer differently on every platform: a backing that names a
+    Linux-only gate would be a defect on macOS and correct on Linux. The sources are the
+    same everywhere, so they are what a backing is held against. Names built in a
+    foreach loop carry a variable, and those become a pattern rather than a literal, so
+    a whole family is accepted while a name belonging to no family still fails.
+    """
+    literals, patterns = set(), []
+    for source in SOURCE_ROOTS:
+        start = os.path.join(root, source)
+        walk = ([(os.path.dirname(start), None, [os.path.basename(start)])]
+                if os.path.isfile(start) else os.walk(start))
+        for base, _, names in walk:
+            for name in names:
+                if name != "CMakeLists.txt":
+                    continue
+                path = os.path.join(base, name)
+                if not os.path.isfile(path):
+                    continue
+                with open(path, encoding="utf-8", errors="replace") as f:
+                    text = f.read()
+                for found in DECLARED.findall(text):
+                    if not GENERATED.search(found):
+                        literals.add(found)
+                        continue
+                    # A name that is nothing but a variable constrains nothing, so it
+                    # would accept every string and take the check's teeth out. Only a
+                    # name with literal text around the variable becomes a family.
+                    if GENERATED.fullmatch(found):
+                        continue
+                    patterns.append(re.compile(
+                        "^" + GENERATED.sub(r"[A-Za-z0-9_.+-]+",
+                                            re.escape(found).replace(r"\$\{", "${")
+                                            ) + "$"))
+    return literals, patterns
+
+
+def test_exists(name, registered, literals, patterns):
+    return (name in registered or name in literals
+            or any(p.match(name) for p in patterns))
 
 
 def read_surface(root, overlay):
@@ -166,8 +221,10 @@ def check_backing(root, ledger, tests):
             # condition, so a renamed or deleted test still fails here while a
             # legitimately absent one does not.
             conditional = ledger.get("conditional_tests", {})
+            registered, literals, patterns = tests
             missing = [t for t in backing.split()
-                       if t not in tests and t not in conditional]
+                       if not test_exists(t, registered, literals, patterns)
+                       and t not in conditional]
             if missing:
                 findings.append({"kind": "backing-missing", **where,
                                  "why": "no such test: " + ", ".join(missing)})
@@ -314,7 +371,7 @@ def main():
 
     root = os.path.abspath(args.source_root)
     ledger = load_ledger(args.ledger)
-    tests = registered_tests(args.build_dir)
+    tests = (registered_tests(args.build_dir), *declared_tests(args.source_root))
 
     overlay = None
     with tempfile.TemporaryDirectory() as tmp:
