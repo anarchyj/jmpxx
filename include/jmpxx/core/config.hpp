@@ -13,7 +13,7 @@
 
 #define JMPXX_VERSION_MAJOR 0
 #define JMPXX_VERSION_MINOR 1
-#define JMPXX_VERSION_PATCH 4
+#define JMPXX_VERSION_PATCH 5
 
 // A single comparable integer, major*10000 + minor*100 + patch, so a consumer can
 // gate on a version in one line: #if JMPXX_VERSION >= 200. The scheme caps minor and

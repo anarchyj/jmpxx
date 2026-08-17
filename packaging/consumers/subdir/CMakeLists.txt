@@ -12,7 +12,7 @@ endif()
 # A real consumer would write:
 #   include(FetchContent)
 #   FetchContent_Declare(jmpxx GIT_REPOSITORY https://github.com/anarchyj/jmpxx.git
-#                        GIT_TAG v0.1.4 FIND_PACKAGE_ARGS NAMES jmpxx)
+#                        GIT_TAG v0.1.5 FIND_PACKAGE_ARGS NAMES jmpxx)
 #   FetchContent_MakeAvailable(jmpxx)
 # which resolves to the add_subdirectory below. The local path keeps the channel test
 # offline and deterministic.

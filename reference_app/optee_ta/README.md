@@ -52,7 +52,10 @@ export JMPXX_INCLUDE_DIR="$PREFIX/include"
 # The kit builds with no default include search, so the toolchain's C++ headers are named.
 export JMPXX_TA_CXX_INCLUDE=<toolchain>/aarch64-none-linux-gnu/include/c++/<version>
 export JMPXX_TA_TRIPLE=aarch64-none-linux-gnu
-make -C reference_app/optee_ta/ta O=<build dir>
+# The osabi target, not the default one. Linking libstdc++ and the unwinder marks the
+# binary ELFOSABI_GNU, and the loader refuses it before reading a program header, so the
+# default target produces a trusted application whose session will not open.
+make -C reference_app/optee_ta/ta O=<build dir> osabi
 ```
 
 The client is an ordinary aarch64 program against `libteec`:
@@ -72,7 +75,7 @@ Driven on the full stack, Trusted Firmware-A through BL1, BL2 and BL31, OP-TEE O
 U-Boot and Linux, the client reports:
 
 ```
-  layout      secure world: sizeof(error)=8 result<int,error>=12 alignof(error)=4 jmpxx 0.1.4
+  layout      secure world: sizeof(error)=8 result<int,error>=12 alignof(error)=4 jmpxx 0.1.5
   valid        verified, 3 entries
   bad digest   invoke failed: 0xffff3024 origin 0x3
   valid again  verified, 3 entries
@@ -82,6 +85,13 @@ U-Boot and Linux, the client reports:
   truncated    fault 1 at depth 0 in 'boot': the manifest is truncated
   valid last   verified, 3 entries
 ```
+
+One line in that run is not a verifier result. `invoke failed: 0xffff3024` is
+`TEE_ERROR_TARGET_DEAD`: the invocation landed on a TEE thread whose thread-local block
+this OP-TEE build had not established, which is the environment limit described at the
+foot of this page. The trusted application is restarted and the following calls succeed,
+and which invocation it lands on moves with thread assignment rather than with the case,
+so it is not always `bad digest`.
 
 `cycle` is the escape the arm exists for: a fault found two levels down, unwinding through
 two frames that each hold a hash context and a visit marker, arriving with its code, its

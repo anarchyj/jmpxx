@@ -73,6 +73,13 @@
   },
   {
    "file": "CHANGELOG.md",
+   "digest": "2b80ffa35187",
+   "text": "The header states 0.1.5 with this release, and a gate holds the version the surface reports against the version the CMake project, the Conan recipe, the vcpkg port, the citation metadata, and the packaging guide state.",
+   "disposition": "gate",
+   "backing": "amalgamation"
+  },
+  {
+   "file": "CHANGELOG.md",
    "digest": "2cd25961fea8",
    "text": "- Boundary-input validation checks, sanitizer tiers, and fuzz targets for malformed bridge input.",
    "disposition": "gate",
@@ -199,13 +206,6 @@
   },
   {
    "file": "CHANGELOG.md",
-   "digest": "8f24e1e67a1f",
-   "text": "The header now states 0.1.4, and a gate holds the version the surface reports against the version the CMake project, the Conan recipe, the vcpkg port, the citation metadata, and the packaging guide state.",
-   "disposition": "gate",
-   "backing": "amalgamation"
-  },
-  {
-   "file": "CHANGELOG.md",
    "digest": "90c7c5fb69dd",
    "text": "- The experimental jmpxx/unwind.hpp arm: an opt-in non-local escape that requires unwind cleanup tables, refuses -fno-exceptions, runs destructors through the platform unwinder, measures and gates the sad path, and documents the catch-all, noexcept, and table caveats across the supported ABIs.",
    "disposition": "gate",
@@ -231,6 +231,13 @@
    "text": "The previous JMPXX_HARDENED switch remains source-compatible: 0 maps to none and any nonzero value maps to fast.",
    "disposition": "gate",
    "backing": "hardening.mode"
+  },
+  {
+   "file": "CHANGELOG.md",
+   "digest": "99d3d54b89ee",
+   "text": "A consumer pinned to v0.1.3 or v0.1.4 who tests JMPXX_VERSION should move to this release; those two tags carry the wrong value and a published tag is not moved.",
+   "disposition": "rationale",
+   "backing": "the tagged trees themselves: git show v0.1.3:include/jmpxx/core/config.hpp and v0.1.4:include/jmpxx/core/config.hpp both report 0.1.2, and a published tag is not moved"
   },
   {
    "file": "CHANGELOG.md",
@@ -6515,6 +6522,18 @@
   },
   {
    "file": "reference_app/optee_ta/README.md",
+   "digest": "6ad1a841f4e7",
+   "text": "invoke failed: 0xffff3024 is TEE_ERROR_TARGET_DEAD: the invocation landed on a TEE thread whose thread-local block this OP-TEE build had not established, which is the environment limit described at the foot of this page.",
+   "disposition": "measurement",
+   "backing": "the recorded run above",
+   "provenance": {
+    "tool": "the OP-TEE client driven on the full secure-firmware stack under QEMU, Trusted Firmware-A through BL1/BL2/BL31, OP-TEE OS as BL32, U-Boot and Linux",
+    "target": "aarch64 secure world, the workspace's own aarch64-none-linux-gnu 14.3.1 toolchain, jmpxx 0.1.5",
+    "obtained": "2026-08-17"
+   }
+  },
+  {
+   "file": "reference_app/optee_ta/README.md",
    "digest": "6e0888782be6",
    "text": "Driven on the full stack, Trusted Firmware-A through BL1, BL2 and BL31, OP-TEE OS as BL32, U-Boot and Linux, the client reports:",
    "disposition": "artifact",
@@ -6568,6 +6587,30 @@
    "text": "The verifier keeps its landing state in thread-local storage, and this OP-TEE build does not establish a trusted application's thread-local block for every TEE thread that enters it, so an invocation that lands on such a thread reads a landing pointer that is not one.",
    "disposition": "artifact",
    "backing": "reference_app/optee_ta/ta/manifest_ta.cpp"
+  },
+  {
+   "file": "reference_app/optee_ta/README.md",
+   "digest": "d15adb11a0c0",
+   "text": "The trusted application is restarted and the following calls succeed, and which invocation it lands on moves with thread assignment rather than with the case, so it is not always bad digest.",
+   "disposition": "measurement",
+   "backing": "two runs of the same stack in which the failing invocation differed",
+   "provenance": {
+    "tool": "the OP-TEE client driven on the full secure-firmware stack under QEMU, Trusted Firmware-A through BL1/BL2/BL31, OP-TEE OS as BL32, U-Boot and Linux",
+    "target": "aarch64 secure world, the workspace's own aarch64-none-linux-gnu 14.3.1 toolchain, jmpxx 0.1.5",
+    "obtained": "2026-08-17"
+   }
+  },
+  {
+   "file": "reference_app/optee_ta/README.md",
+   "digest": "f4da21eecdad",
+   "text": "One line in that run is not a verifier result.",
+   "disposition": "measurement",
+   "backing": "the recorded run above",
+   "provenance": {
+    "tool": "the OP-TEE client driven on the full secure-firmware stack under QEMU, Trusted Firmware-A through BL1/BL2/BL31, OP-TEE OS as BL32, U-Boot and Linux",
+    "target": "aarch64 secure world, the workspace's own aarch64-none-linux-gnu 14.3.1 toolchain, jmpxx 0.1.5",
+    "obtained": "2026-08-17"
+   }
   }
  ]
 }

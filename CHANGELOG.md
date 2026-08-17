@@ -8,13 +8,17 @@ is recorded here with its migration impact.
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-08-17
+
 ### Fixed
 - `JMPXX_VERSION` reported 0.1.2 in the 0.1.3 and 0.1.4 releases. Every packaging
   channel stated the right version and the header a consumer compiles did not, so a
-  `#if JMPXX_VERSION >= 103` check answered for the wrong release. The header now
-  states 0.1.4, and a gate holds the version the surface reports against the version
-  the CMake project, the Conan recipe, the vcpkg port, the citation metadata, and the
-  packaging guide state.
+  `#if JMPXX_VERSION >= 103` check answered for the wrong release. The header states
+  0.1.5 with this release, and a gate holds the version the surface reports against the
+  version the CMake project, the Conan recipe, the vcpkg port, the citation metadata,
+  and the packaging guide state. A consumer pinned to v0.1.3 or v0.1.4 who tests
+  `JMPXX_VERSION` should move to this release; those two tags carry the wrong value and
+  a published tag is not moved.
 - The introduction said the error value is stored out of band so the functions in the
   middle of a chain never grow an error type. The portable transport carries the failure
   in band inside `result<T, E>`, and every intermediate function names that type; what
@@ -228,7 +232,8 @@ explicitly opt-in.
   macros for consumer version checks.
 - SPDX license tags on source files and the MIT license text in `LICENSE`.
 
-[Unreleased]: https://github.com/anarchyj/jmpxx/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/anarchyj/jmpxx/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/anarchyj/jmpxx/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/anarchyj/jmpxx/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/anarchyj/jmpxx/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/anarchyj/jmpxx/compare/v0.1.1...v0.1.2
