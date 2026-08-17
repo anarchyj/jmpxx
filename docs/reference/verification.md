@@ -22,7 +22,7 @@ report what it did. The codegen and size commands compile a fixture and inspect 
   committed golden, so an unversioned layout change fails the build. See [abi.md](abi.md).
 - `unwind` drives the experimental arm and reports its destructor count and sad-path distribution,
   detailed in [unwind.md](unwind.md). `unwind-matrix` runs each case of the arm's per-runtime
-  behaviour matrix as its own process, because a case whose declared outcome is a termination kills
+  behavior matrix as its own process, because a case whose declared outcome is a termination kills
   the process that runs it, and reports what the C++ runtime in this build did with a handler or a
   barrier on the escape path. It also reports how many cases it asked against how many it knows,
   and fails on a mismatch, because a probe that quietly asks fewer questions still passes every
@@ -42,6 +42,8 @@ report what it did. The codegen and size commands compile a fixture and inspect 
 - `compile-cost` compiles a jmpxx fixture and a baseline and reports the translation cost as the
   template-instantiation count, a deterministic metric, and the wall-clock ratio alongside it.
 - `levels` reports each propagation level's cost, listed in [propagation-levels.md](propagation-levels.md).
+- `platform` also reports the version the compiled header carries, which the
+  documented-value gate holds against the version every packaging channel states.
 - `all` runs the behavioral and size commands together.
 
 ## `jmpxx-bench`
@@ -90,7 +92,14 @@ checked against a known-bad input so it cannot pass silently.
 | unwind concurrency | `unwind.concurrent` CTest tier | many threads escape independently with no race or wrong landing | a shared rather than per-thread landing stack |
 | unwind reentrancy | `unwind.reentrancy` CTest tier | each misdirected escape lands or terminates as declared | the refusing cases made to return success |
 | abi layout | `abi-layout` | frozen type layout matches the committed golden | a golden claiming a changed layout |
-| doc claim | `doc_claim` script | a documented cost matches the harness | a doc stating a cost the harness does not report |
+| documented values | `doc_claim` | every value the harness reports that the prose also states matches, and the covered set is at or above its floor | a document stating a value the harness does not report |
+| claim backing | `claim.audit` | every claim on the public prose and comment surface carries one recorded disposition naming what backs it | an unbacked claim added to a public document, and a withdrawn wording put back |
+| claim provenance | `claim.provenance` | every measured claim records the toolchain, target, and date it came from | a measured claim stripped of its provenance, and one relabeled to dodge the rule |
+| canonical home | `claim.canonical_home` | no claim-bearing statement about a named subject has a second home above the recorded similarity | a duplicate pair the tree once carried, put back |
+| gate accounting | `gate.accounting` | every gate has a case count recorded outside it, and every gate needing a quiet machine runs alone | a gate's recorded count dropped |
+| codegen identity | `codegen.identity` | the shipped chain and the hand-written chain compile to the same instructions | the bloated fixture, whose code differs |
+| foreign headers | `interop.foreign_headers` | the public surface builds and runs behind real upstream header trees from ecosystems with differing collision habits | a public header reaching for a name one of those trees defines |
+| unwind body frame | `unwind.body_frame` | the escape destroys every object its body constructed, at every optimization level | none: see the note on unfalsifiable defences below |
 | adversarial fuzz | `adversarial.fuzz.*` CTest tiers | portable surface has no crash or sanitizer finding under structured, libFuzzer, and AFL input | injected crash seeds for each fuzz path |
 | differential | `adversarial.differential` | transport and bridge behavior match an independent oracle | an injected oracle divergence |
 | exception safety | `adversarial.exception_safety` | throwing operations do not leave an observable empty or wrong state | an injected empty-state report |
@@ -111,6 +120,27 @@ branches over named portable headers rather than averaging line coverage across 
 The expected bridge region is required on toolchains that expose `std::expected` and is
 reported as absent on toolchains where `JMPXX_INTEROP_HAS_EXPECTED=0`.
 
+## What a gate must report
+
+A gate reporting a pass is not the same as a gate having asked its question. Each gate
+prints how many cases it checked and how many it knows of, and the number it must reach
+is recorded in the acceptance sweep rather than only inside the gate, so trimming a gate
+and its own expectation together still fails. The sweep reports the share of the gate set
+carrying that accounting and fails below the recorded floor.
+
+A gate whose result depends on how the suite was invoked declares it. The arm's scaling
+and sad-path measurements and the perf gate all compare two things measured in the same
+loop, and running them beside the rest of the suite reports the machine's load rather
+than the code; they are registered to run alone and the accounting check fails if one is
+not.
+
+A gate ends in one of three states. It has teeth, proven by a known-bad input it fails.
+It is removed, because what it claimed to check is not checked. Or it is recorded as an
+unfalsifiable defence: a defence that is real, whose subject could not be made to fail,
+kept with the attempts that were tried. `unwind.body_frame` is the one gate in that
+state, and it re-runs its failed attempt every sweep, so a compiler that starts breaking
+the defence moves it out of that state rather than leaving it there.
+
 `adversarial.usage_scenarios` is a usage tier rather than a gate. It runs fixed-buffer
 embedded-style sensor validation, feed decoding with a risk bound, and a storage/page
 boundary under extensive hardening, `-fno-exceptions`, `-fno-rtti`, diagnostics off, and
@@ -130,8 +160,9 @@ The schema is stable within a major version.
 verdict. It runs every tier and every gate through CTest, pairs each gate with its inverted
 self-test (the `.teeth` cases), and reports a gate green only when the gate and its inverted test
 both pass. A gate with no passing inverted self-test is reported `unteethed` and fails the
-verdict, so the report cannot read green while a gate lacks its negative check. It records the cell's compiler,
-architecture, and standard and the headline metrics from `jmpxx-verify`.
+verdict, so the report cannot read green while a gate lacks its negative check. It records
+the cell's compiler, architecture, and standard and the headline metrics from
+`jmpxx-verify`.
 
 ```sh
 python3 verify/acceptance.py --build-dir build --format json --out acceptance.json

@@ -27,7 +27,11 @@ require an enumeration type.
 
 `jmpxx::reflect::enum_name(E value)` returns the enumerator's name as a
 `std::string_view`, or an empty view when the value names no enumerator. The view
-aliases static storage and outlives the program.
+aliases static storage and outlives the program. **It is not null-terminated**: on the
+C++20 path it points into the middle of a longer compiler-generated literal, so passing
+its `data()` to a C-style string API hands over the rest of that literal. Carry the size
+with the pointer, or copy into a terminated buffer, whenever the name crosses into a C
+interface.
 
 `jmpxx::reflect::enum_cast<E>(std::string_view name)` returns the enumerator a name
 denotes as a `std::optional<E>`, or no value when the name matches none.

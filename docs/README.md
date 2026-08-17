@@ -47,7 +47,7 @@ Boost.LEAF, and tl::expected, and states where jmpxx wins and where it does not.
 ## Distribution
 
 - [packaging.md](reference/packaging.md): installing and depending on jmpxx through
-  find_package, FetchContent, CPM, Conan, vcpkg, and the single-header amalgamation.
+  `find_package`, FetchContent, CPM, Conan, vcpkg, and the single-header amalgamation.
 - [abi.md](reference/abi.md): which type layouts are frozen within a major version, and
   what the promise does and does not cover.
 

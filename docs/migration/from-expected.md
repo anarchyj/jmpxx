@@ -62,11 +62,9 @@ result<int, error> r = parse(text)
     .or_else([](error e) { return recover(e); });    // handle the failure
 ```
 
-`and_then`, `transform`, `or_else`, and `transform_error` match `std::expected`'s
-semantics across the value and error states, with the same lvalue, const, and rvalue
-overloads, and a `result<void, E>` invokes the value-side callable with no argument. The
-one difference is that jmpxx invokes the callable directly as `f(value)` rather than
-through `std::invoke`, which keeps the combinators in the freestanding core with no
-`<functional>` dependency; a function, a lambda, or a function object works. `JMPXX_TRY`
+The four combinators match `std::expected`'s semantics, so a pipeline carries over as
+written. One thing to check while porting: a callable that only works through
+`std::invoke`, such as a pointer to member, needs wrapping in a lambda here. The
+reason and the full contract are in [policies.md](../reference/policies.md). `JMPXX_TRY`
 remains the cheaper, exception-free path for straight-line propagation, and the
-combinators are there when a pipeline reads better. See [interop.md](../reference/interop.md).
+combinators are there when a pipeline reads better.

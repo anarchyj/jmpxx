@@ -8,12 +8,56 @@ is recorded here with its migration impact.
 
 ## [Unreleased]
 
+### Fixed
+- `JMPXX_VERSION` reported 0.1.2 in the 0.1.3 and 0.1.4 releases. Every packaging
+  channel stated the right version and the header a consumer compiles did not, so a
+  `#if JMPXX_VERSION >= 103` check answered for the wrong release. The header now
+  states 0.1.4, and a gate holds the version the surface reports against the version
+  the CMake project, the Conan recipe, the vcpkg port, the citation metadata, and the
+  packaging guide state.
+- The introduction said the error value is stored out of band so the functions in the
+  middle of a chain never grow an error type. The portable transport carries the failure
+  in band inside `result<T, E>`, and every intermediate function names that type; what
+  travels out of band is the diagnostic context, and source-oblivious middle frames are
+  the experimental arm's property rather than the portable surface's. The claim is
+  narrowed to what the transport does.
+
+### Added
+- A claim-integrity layer over the public surface. Every claim-bearing sentence in the
+  public documentation and the public header comments carries a recorded disposition
+  naming what backs it: a gate, a committed artifact, or a measurement with the
+  toolchain, target, and date it came from. `claim.audit`, `claim.provenance`, and
+  `claim.canonical_home` check those, each against its own known-bad input.
+- `codegen.identity` compares the shipped chain against the same chain written by hand
+  and requires the same instructions. The claim that the two are identical was carried
+  by a size gate and an instruction count; nothing diffed the generated code until now.
+- The documented-value gate covers every value the harness reports that the prose also
+  states, rather than two costs in one document, and reports the covered set so it
+  cannot narrow silently.
+- `interop.foreign_headers` builds and runs the public surface behind real upstream
+  header trees from four ecosystems with different collision habits, replacing a
+  transcribed list of macros.
+- Every gate now reports how many cases it checked against a count recorded outside it,
+  and the acceptance sweep fails when a gate goes quiet. Gates that measure latency
+  declare that they need a quiet machine and the suite runs them alone.
+- `probe.size` gained the inverted self-test the verification reference already
+  described, and `unwind.body_frame` records the one defence whose subject could not be
+  made to fail, with the attempts that were tried.
+- [The unwind arm's design note](docs/design/unwind-arm.md) publishes how the escape
+  works per ABI, the per-runtime behavior matrix, the optimization, concurrency, and
+  reentrancy evidence, and every measurement's toolchain and date. The reference page is
+  now the contract and points there for the reasoning.
+
+### Changed
+- Documentation that said the same thing in two places now says it in one. A fact has a
+  home and every other surface states its own local consequence, which a gate enforces.
+
 ## [0.1.4] - 2026-08-17
 
 ### Changed
 - The repository moved and every reference now names its current location: the package
   homepage and CMake project URL, the citation metadata, the vcpkg port source, and the
-  FetchContent, CPM and Conan examples in the packaging reference. Requests to the old
+  FetchContent, CPM, and Conan examples in the packaging reference. Requests to the old
   path are still redirected, so 0.1.3 keeps working, but a consumer reading the metadata
   now gets the canonical location.
 
@@ -26,7 +70,7 @@ is recorded here with its migration impact.
   `noexcept` is skipped the same way instead of terminating. The arm cannot detect
   either, because the runtime skips those frames before the arm regains control. The
   reference now states the limitation, and the per-runtime matrix records the three
-  cells and fails if their behaviour changes in either direction.
+  cells and fails if their behavior changes in either direction.
 - Four verification gates reported failures that were properties of the platform rather
   than of the library: the cross-architecture reentrancy step ended at its first correct
   refusal because a workflow step runs under `set -e`, two gate scripts aborted on bash
@@ -69,8 +113,8 @@ is recorded here with its migration impact.
 - The documented reason the unwind arm declines `[[noreturn]]` on `eject` was wrong
   and had been since the arm was introduced. What deletes the cleanup landing pads the
   forced unwind depends on is a proof at the call site that the call cannot unwind;
-  `[[noreturn]]` alone does not reach that on any compiler in the support matrix, which
-  keep the pads while the call may still unwind. The reference page stated both the
+  `[[noreturn]]` alone does not reach that on any compiler in the support matrix, all of
+  which keep the pads while the call may still unwind. The reference page stated both the
   wrong reason and the measured one in different sections. The obligation on a consumer
   is unchanged and is the one the caveats already state: a helper that wraps `eject`
   must not be declared in a way that lets its caller prove it cannot unwind.

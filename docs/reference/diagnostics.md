@@ -13,9 +13,18 @@ release build. Including `jmpxx/core.hpp` never pulls it in, which the
 The layer is on when `JMPXX_DIAGNOSTICS_ENABLED` is set, which defaults to on unless
 `NDEBUG` is defined. When it is off, `rich_error` is layout- and codegen-identical to
 `jmpxx::error`, `<source_location>` is not included, and every facility below is
-compiled out. The release identity is enforced, not assumed: `jmpxx-verify
-release-diff` requires the rich and minimal policies to generate identical code in a
-release build and fails if a diagnostic call or a source-location string reaches
+compiled out.
+
+Compiled out means the names are gone, not that the calls become no-ops. `landing` stays
+and becomes an empty object, so a scope written for the debug build still compiles; the
+context surface does not. Code that calls `diagnostic::inspect`, names
+`diagnostic::context`, or reads a `chain_length` guards those uses with
+`#if JMPXX_DIAGNOSTICS_ENABLED`, or asks for the layer explicitly with
+`-DJMPXX_DIAGNOSTICS_ENABLED=1`, which is independent of `NDEBUG`. A host build that
+defines `NDEBUG` for its own reasons is the common way to meet this. The release identity
+is enforced, not assumed: `jmpxx-verify release-diff` requires the rich and minimal
+policies to generate identical code in a release build, and fails if a diagnostic call
+or a source-location string reaches
 release read-only data, because a source location materializes its file and function
 strings into the binary even where the value is unused.
 
