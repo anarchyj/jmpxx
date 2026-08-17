@@ -99,7 +99,7 @@ on the Itanium and DWARF ABIs and terminates on the ARM exception-handling ABI. 
 therefore refuses a second escape while one is unwinding, uniformly on every target, rather
 than allowing it where it happens to work.
 
-## Per-runtime behaviour, measured
+## Per-runtime behavior, measured
 
 What a handler on the escape path does to the escape is the C++ runtime's decision, not the
 arm's, so the contract is stated per runtime. Each row is one case run as its own process,
@@ -119,7 +119,7 @@ because a case whose outcome is a termination kills the process that runs it.
 | second escape to the unwinding scope | refused | refused | refused | no backend |
 
 Provenance. libstdc++ measured on x86-64 with GCC 13.3.0 on 2026-08-17, and on AArch64,
-RISC-V and 32-bit ARM with the GCC 13.3.0 cross compilers under user-mode emulation on
+RISC-V, and 32-bit ARM with the GCC 13.3.0 cross compilers under user-mode emulation on
 2026-08-17; the four architectures produce identical rows. libc++abi measured against
 libc++ 18 with libc++abi and LLVM's libunwind on x86-64 Linux, 2026-08-16. WebAssembly
 measured with Emscripten 3.1.6 under Node 18, 2026-08-17. MinGW-w64 GCC 13 measured under
@@ -138,13 +138,13 @@ arrives at its landing carrying the correct error. The caller sees a successful 
 a leak. A frame marked `noexcept` is skipped the same way rather than terminating. The arm
 cannot detect either, because the runtime skips those frames before the arm regains
 control. On that runtime an escape path must carry neither a catch-all nor an empty
-exception specification. Those three cells are recorded in the behaviour matrix as known
+exception specification. Those three cells are recorded in the behavior matrix as known
 unsafe, and the matrix fails if any of them changes in either direction.
 
 ## Destructor evidence
 
 An escape from nine frames runs every destructor exactly once, on GCC 13.3.0 and Clang 16
-through 19 at every optimization level, on x86-64 natively and on AArch64, RISC-V and
+through 19 at every optimization level, on x86-64 natively and on AArch64, RISC-V, and
 32-bit ARM under user-mode emulation, measured 2026-08-17. The same count holds on a
 bare-metal Cortex-M3 under system emulation and in a trusted application in the secure
 world. `jmpxx-verify unwind` reports it, and the inverted subject, an arm whose escape a
@@ -155,7 +155,7 @@ caller can prove cannot unwind, destroys nothing.
 Destructor balance holds under `-flto` at `-O2` and `-O3`, under `-flto` with static
 linking, under `-flto` with section garbage collection, and under thin and whole-program
 modes, with the landing and the frames in separate translation units so the optimizer first
-sees the whole escape at link time. Measured on x86-64, AArch64 and RISC-V with GCC 13.3.0
+sees the whole escape at link time. Measured on x86-64, AArch64, and RISC-V with GCC 13.3.0
 and Clang 18, 2026-08-17. The inverted subject, an arm whose escape a caller can prove
 cannot unwind, fails every one of those configurations, which is what gives that evidence
 its teeth.
@@ -184,7 +184,7 @@ whose landing stack is one global instead of one per thread, dies. Measured on x
 Clang 18, 2026-08-17.
 
 The seven reentrancy cases the reference enumerates, six refusals and the one shape that
-lands, were verified identically on x86-64, AArch64 and 32-bit ARM, 2026-08-17. Each
+lands, were verified identically on x86-64, AArch64, and 32-bit ARM, 2026-08-17. Each
 refusal is a termination with its own diagnostic rather than an undefined outcome, and the
 inverted build, in which the refusing cases return success instead, fails.
 
@@ -194,7 +194,7 @@ cleanup imbalance across roughly two million constructions, and no leaked landin
 
 Escaping stays as parallel as the platform's own unwinder and no more. Measured against a
 C++ throw in the same loop as threads are added, the escape's latency inflates within seven
-per cent of the throw's at eight threads, which is the honest answer: both walk the same
+percent of the throw's at eight threads, which is the honest answer: both walk the same
 unwinder, so the arm neither adds nor removes contention. The inverted run, which
 serializes the escape path alone, inflates twenty-four fold and fails the bound. Measured on
 a twelve-core x86-64 host, 2026-08-16.
@@ -227,8 +227,8 @@ guarantees:
 - **The per-runtime table above was produced on one machine.** Continuous integration runs
   the arm's execution tiers on each reachable ABI, but the ten-case table across four
   runtimes is not yet a continuous-integration cell. A support contract that states
-  per-runtime behaviour needs those rows reproduced on every change.
-- **Two cells are stale.** libcxxrt's behaviour was measured against an earlier build of the
+  per-runtime behavior needs those rows reproduced on every change.
+- **Two cells are stale.** libcxxrt's behavior was measured against an earlier build of the
   arm and has not been re-measured against the current one. Native MSVC was last measured on
   2026-06-24 and its build tools are no longer installed on the host that measured it.
 - **The cleanup-table obligation is documented and unenforced.** A consumer who compiles one

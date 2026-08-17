@@ -250,8 +250,8 @@ inline _Unwind_Reason_Code stop_function(int, _Unwind_Action actions,
 // consumed rather than landed: a catch-all on the path caught it and did not rethrow.
 // That swallowed escape would otherwise silently fail to reach its landing, so the arm
 // turns it into a defined, diagnosed termination, exactly as the platform's own
-// cancellation unwinder does. See jmpxx/unwind.hpp for the catch-all contract and the
-// cooperative rethrow idiom that transits the arm.
+// cancellation unwinder does. See docs/reference/unwind.md for the catch-all contract
+// and the cooperative rethrow idiom that transits the arm.
 inline void escape_cleanup(_Unwind_Reason_Code, _Unwind_Exception*) noexcept {
   report_swallowed_escape();
 }

@@ -37,7 +37,7 @@ compile_commands.json
 /pkgbuild/
 /refbuild/
 
-# conan/cmake generated user presets
+# Conan/CMake generated user presets
 CMakeUserPresets.json
 
 # Python bytecode from the verification scripts

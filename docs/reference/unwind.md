@@ -58,7 +58,7 @@ ordinary, as `jmpxx::unwind::eject` itself is.
 
 ## Failure modes
 
-Each of these is a defined termination with its own diagnostic, not undefined behaviour:
+Each of these is a defined termination with its own diagnostic, not undefined behavior:
 
 - No `escape_scope` is active on this thread.
 - The ejected error type does not match the active scope's.

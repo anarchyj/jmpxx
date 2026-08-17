@@ -14,10 +14,10 @@
 // direction promises.
 //
 // The whole bridge exists only where exceptions are enabled, which is the opposite
-// of the primary no-exceptions use case, so it is fenced behind JMPXX_HAS_EXCEPTIONS and is absent
-// from a -fno-exceptions or freestanding build. Including it in such a build defines
-// JMPXX_INTEROP_HAS_EXCEPTION_BRIDGE to 0 and declares nothing, so a translation unit
-// can include it unconditionally and query the macro.
+// of the primary no-exceptions use case, so it is fenced behind JMPXX_HAS_EXCEPTIONS
+// and is absent from a -fno-exceptions or freestanding build. Including it in such a
+// build defines JMPXX_INTEROP_HAS_EXCEPTION_BRIDGE to 0 and declares nothing, so a
+// translation unit can include it unconditionally and query the macro.
 #ifndef JMPXX_INTEROP_EXCEPTION_HPP
 #define JMPXX_INTEROP_EXCEPTION_HPP
 
@@ -56,8 +56,8 @@ class error_exception : public std::exception {
 };
 
 // result -> value, throwing on failure. Used where exception-free code must hand a
-// failure to a component that expects a throw: on success the value is returned, on
-// failure error_exception<E> carrying the error is thrown.
+// failure to a component that expects a throw: on success the value is returned,
+// and on failure error_exception<E> carrying the error is thrown.
 template <class T, class E>
 T value_or_throw(result<T, E> r) {
   if (r) {

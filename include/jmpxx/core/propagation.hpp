@@ -11,7 +11,7 @@
 //
 // Level 2, the landing scope, marks the single typed boundary a region's
 // propagation lands at. It introduces a call boundary, which costs one frame
-// unless the call is inlined and allocates nothing; its reference entry states
+// unless the call is inlined, and allocates nothing; its reference entry states
 // that cost.
 #ifndef JMPXX_CORE_PROPAGATION_HPP
 #define JMPXX_CORE_PROPAGATION_HPP

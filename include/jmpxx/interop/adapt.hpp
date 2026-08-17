@@ -41,7 +41,7 @@ template <class E, class Opt, class MakeError>
 }
 
 // Adapt a boolean-plus-value result into a result. `present` says whether a value
-// is available; when true the value comes from take(), when false the failure
+// is available; when true the value comes from take(), and when false the failure
 // comes from on_absent(). This fits a library whose success flag and value are
 // separate, such as a parse result that is tested for success and then asked for
 // its parsed object, where there is no single optional to dereference.

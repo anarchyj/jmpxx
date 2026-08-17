@@ -48,7 +48,7 @@ is zero overhead over a hand-written branch, not a win over a thrown exception's
 **Boost.LEAF is the closest rival, and the two metrics disagree about it.** LEAF, like jmpxx, keeps
 the error payload out of the return path, and on this machine its wall-clock happy path is faster
 than jmpxx's. Under callgrind LEAF executes 275 instructions per happy-path call to jmpxx's 136,
-because its machinery to stash an error id is more instructions that pipeline well. That is the
+because its machinery to stash an error id is more instructions, and they pipeline well. That is the
 limit of an instruction count: callgrind models no pipeline, cache, or branch prediction, so it
 measures static work and not time. Both numbers are reported here. jmpxx's transport is half LEAF's
 size, twelve bytes against twenty-four, and a jmpxx failure carries its code in band where LEAF's

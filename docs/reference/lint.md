@@ -52,5 +52,5 @@ needed.
 
 Each finding is one line, `file:line:col: check-name: message`, followed by a count, so a script or a
 test can assert the exact set. The lint tier in continuous integration runs the tool over a fixture
-of deliberate violations and asserts every check fires, and over a fixture of correct and tricky-but-
-correct code and asserts it reports nothing.
+of deliberate violations and asserts every check fires, and over a fixture of correct and
+tricky-but-correct code and asserts it reports nothing.

@@ -114,8 +114,8 @@
 #define JMPXX_ARCH_ARM64 0
 #endif
 
-// 32-bit ARM. _M_ARM is the MSVC spelling; __arm__ covers GCC/Clang. Guarded
-// against AArch64, which defines neither but is matched above.
+// 32-bit ARM. _M_ARM is the MSVC spelling; __arm__ covers GCC/Clang. AArch64
+// needs no exclusion here because it defines neither, and it is matched above.
 #if defined(__arm__) || defined(_M_ARM)
 #define JMPXX_ARCH_ARM32 1
 #else

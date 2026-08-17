@@ -121,7 +121,7 @@ The `jmpxx-verify` tool reproduces each measurement. `python3 verify/acceptance.
 Every reachable cell builds and runs in continuous integration, the cross
 architectures under emulation. The optional C++26 reflection layer is validated on
 a reflection-capable toolchain and degrades to a hand-written C++20 path that
-produces identical results. `JMPXX_VERSION` (and `JMPXX_VERSION_STRING`) expose the
+produces identical results. `JMPXX_VERSION` (and `JMPXX_VERSION_STRING`) exposes the
 version for a one-line consumer check: `#if JMPXX_VERSION >= 100`.
 
 ## When to reach for jmpxx
@@ -157,7 +157,7 @@ Every statement about size, speed, or generated code is measured and gated in
 CI, and a regression fails the build. The `jmpxx-verify` tool compiles a fixture,
 emits its optimized machine code, compares it against a committed reference, and
 reports transport size, the binary-size delta over a hand-written branch, and the
-compile-cost as a deterministic instantiation count. The `jmpxx-bench` tool reports
+compile cost as a deterministic instantiation count. The `jmpxx-bench` tool reports
 the per-call latency distribution against every incumbent, and a callgrind run counts
 the instructions each executes, deterministically. [docs/comparison.md](docs/comparison.md)
 states where jmpxx wins and where it does not. Claims without a backing artifact are
@@ -186,7 +186,7 @@ jmpxx through `find_package` alongside two third-party libraries, and the
 
 ## Versioning and stability
 
-jmpxx follows semantic versioning. While jmpxx is at 0.x the public surface may
+jmpxx follows semantic versioning. While jmpxx is at 0.x, the public surface may
 change between minor versions, so `find_package(jmpxx 0.1)` accepts a 0.1.x release and
 rejects 0.2.0. The observable layout of the transport under a fixed policy is held
 frozen from 0.1.0 by the ABI gate, with the experimental unwind arm exempt until it

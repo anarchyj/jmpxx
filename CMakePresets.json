@@ -49,7 +49,7 @@
       "name": "asan-ubsan",
       "configurePreset": "asan-ubsan",
       "output": { "outputOnFailure": true },
-      "description": "Sanitizers slow execution unevenly, so a latency-ratio gate measures the sanitizer not the code and can flake; the timing gates are excluded here and run in the ordinary jobs, while the arm's memory and undefined-behavior coverage stays through the execution and fuzz tiers.",
+      "description": "Sanitizers slow execution unevenly, so a latency-ratio gate measures the sanitizer, not the code, and can flake; the timing gates are excluded here and run in the ordinary jobs, while the arm's memory and undefined-behavior coverage stays through the execution and fuzz tiers.",
       "filter": { "exclude": { "name": "benchmark" } }
     }
   ]

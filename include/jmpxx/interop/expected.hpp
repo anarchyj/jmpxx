@@ -10,6 +10,7 @@
 // This bridge lives in its own header and is never pulled in by jmpxx/core.hpp, so
 // the minimal core's include graph stays free of <expected>; that separation is
 // what keeps the freestanding promise.
+//
 // std::expected became freestanding only in C++26, but <expected> itself compiles
 // in a freestanding configuration on the supported toolchains, and the conversions
 // below touch only its freestanding-clean surface: they construct from a value or a

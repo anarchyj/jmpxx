@@ -31,7 +31,7 @@ int main() {
   }
 
   for (const char* in : {"1234", "12x4"}) {
-    // The landing boundary. Body returns normally on success; an eject below lands here.
+    // The landing boundary. The body returns normally on success; an eject below lands here.
     auto r = jmpxx::unwind::escape_scope<error>([&] { return sum_digits(in, 0); });
     if (r)
       std::printf("sum_digits(\"%s\") = %d\n", in, r.value());

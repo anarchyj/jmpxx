@@ -14,7 +14,7 @@
 // minimal error representation, and single-construct propagation.
 //
 // This is the include boundary. Everything hosted, the diagnostic layer, the interop
-// bridges, the reflection layer and the experimental escape, lives under a separate
+// bridges, the reflection layer, and the experimental escape, lives under a separate
 // header and is never reached from here, which is what keeps the core usable where
 // the standard library is not. docs/reference/policies.md states what that promises a
 // consumer; tests/scripts/include_boundary_check.sh is what holds it.
@@ -150,8 +150,8 @@
 #define JMPXX_ARCH_ARM64 0
 #endif
 
-// 32-bit ARM. _M_ARM is the MSVC spelling; __arm__ covers GCC/Clang. Guarded
-// against AArch64, which defines neither but is matched above.
+// 32-bit ARM. _M_ARM is the MSVC spelling; __arm__ covers GCC/Clang. AArch64
+// needs no exclusion here because it defines neither, and it is matched above.
 #if defined(__arm__) || defined(_M_ARM)
 #define JMPXX_ARCH_ARM32 1
 #else
@@ -195,7 +195,7 @@
 #error "jmpxx requires C++20 or later."
 #endif
 
-// feature-test wrappers (guarded so an absent facility is not a hard error)
+// Feature-test wrappers (guarded so an absent facility is not a hard error)
 #if defined(__has_builtin)
 #define JMPXX_HAS_BUILTIN(x) __has_builtin(x)
 #else
@@ -219,7 +219,7 @@
 #define JMPXX_NODISCARD(msg)
 #endif
 
-// forced inlining for the thin wrappers whose only job is to vanish. Used
+// Forced inlining for the thin wrappers whose only job is to vanish. Used
 // sparingly; the optimizer is trusted for everything else.
 #if JMPXX_COMPILER_GCC || JMPXX_COMPILER_CLANG
 #define JMPXX_ALWAYS_INLINE inline __attribute__((always_inline))
@@ -241,7 +241,7 @@
 #define JMPXX_NOINLINE
 #endif
 
-// expression-level branch hints for the propagation fast path. The happy
+// Expression-level branch hints for the propagation fast path. The happy
 // path is the predicted one. These compile to nothing where unsupported.
 #if JMPXX_COMPILER_GCC || JMPXX_COMPILER_CLANG
 #define JMPXX_LIKELY(x) (__builtin_expect(static_cast<bool>(x), 1))
@@ -299,7 +299,7 @@
 #define JMPXX_HARDENING_EXTENSIVE_ENABLED \
   (JMPXX_HARDENING_MODE >= JMPXX_HARDENING_EXTENSIVE)
 
-// diagnostic-layer switch. JMPXX_DIAGNOSTICS_ENABLED=1 turns on the debug-only
+// Diagnostic-layer switch. JMPXX_DIAGNOSTICS_ENABLED=1 turns on the debug-only
 // diagnostic layer: the rich policy captures a failure's origin and the causal
 // chain it accumulates as it propagates, held out of band. When 0 the entire
 // layer compiles to nothing, the rich policy's representation and codegen equal
@@ -316,7 +316,7 @@
 #endif
 #endif
 
-// optional stack-trace capture for the diagnostic layer. JMPXX_STACKTRACE=1 makes
+// Optional stack-trace capture for the diagnostic layer. JMPXX_STACKTRACE=1 makes
 // a captured failure also record the return addresses of its creation site, on
 // platforms where a fenced capturer is available. Off by default and meaningful
 // only when JMPXX_DIAGNOSTICS_ENABLED is on. Symbolizing the addresses is an
@@ -368,7 +368,7 @@ struct error {
 //
 // Level 2, the landing scope, marks the single typed boundary a region's
 // propagation lands at. It introduces a call boundary, which costs one frame
-// unless the call is inlined and allocates nothing; its reference entry states
+// unless the call is inlined, and allocates nothing; its reference entry states
 // that cost.
 #ifndef JMPXX_CORE_PROPAGATION_HPP
 #define JMPXX_CORE_PROPAGATION_HPP

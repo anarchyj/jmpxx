@@ -92,8 +92,8 @@ inline category_table& categories() noexcept {
 
 }  // namespace detail
 
-// The jmpxx error category for a domain, default the generic domain 0. Its identity
-// is stable for the program's lifetime.
+// The jmpxx error category for a domain, defaulting to the generic domain 0. Its
+// identity is stable for the program's lifetime.
 [[nodiscard]] inline const std::error_category& error_category(
     int domain = 0) noexcept {
   return detail::categories().get(domain);
@@ -111,7 +111,7 @@ inline category_table& categories() noexcept {
 }
 
 // std::error_code -> jmpxx::error. What each direction preserves, and what a foreign
-// category loses, is in docs/reference/interop.md. is_jmpxx is exposed beside it
+// category loses, are in docs/reference/interop.md. is_jmpxx is exposed beside it
 // because a caller that must not narrow a foreign code needs to ask before it
 // converts rather than after.
 [[nodiscard]] inline bool is_jmpxx(const std::error_code& ec) noexcept {

@@ -14,7 +14,7 @@
 // minimal error representation, and single-construct propagation.
 //
 // This is the include boundary. Everything hosted, the diagnostic layer, the interop
-// bridges, the reflection layer and the experimental escape, lives under a separate
+// bridges, the reflection layer, and the experimental escape, lives under a separate
 // header and is never reached from here, which is what keeps the core usable where
 // the standard library is not. docs/reference/policies.md states what that promises a
 // consumer; tests/scripts/include_boundary_check.sh is what holds it.
@@ -150,8 +150,8 @@
 #define JMPXX_ARCH_ARM64 0
 #endif
 
-// 32-bit ARM. _M_ARM is the MSVC spelling; __arm__ covers GCC/Clang. Guarded
-// against AArch64, which defines neither but is matched above.
+// 32-bit ARM. _M_ARM is the MSVC spelling; __arm__ covers GCC/Clang. AArch64
+// needs no exclusion here because it defines neither, and it is matched above.
 #if defined(__arm__) || defined(_M_ARM)
 #define JMPXX_ARCH_ARM32 1
 #else
@@ -195,7 +195,7 @@
 #error "jmpxx requires C++20 or later."
 #endif
 
-// feature-test wrappers (guarded so an absent facility is not a hard error)
+// Feature-test wrappers (guarded so an absent facility is not a hard error)
 #if defined(__has_builtin)
 #define JMPXX_HAS_BUILTIN(x) __has_builtin(x)
 #else
@@ -219,7 +219,7 @@
 #define JMPXX_NODISCARD(msg)
 #endif
 
-// forced inlining for the thin wrappers whose only job is to vanish. Used
+// Forced inlining for the thin wrappers whose only job is to vanish. Used
 // sparingly; the optimizer is trusted for everything else.
 #if JMPXX_COMPILER_GCC || JMPXX_COMPILER_CLANG
 #define JMPXX_ALWAYS_INLINE inline __attribute__((always_inline))
@@ -241,7 +241,7 @@
 #define JMPXX_NOINLINE
 #endif
 
-// expression-level branch hints for the propagation fast path. The happy
+// Expression-level branch hints for the propagation fast path. The happy
 // path is the predicted one. These compile to nothing where unsupported.
 #if JMPXX_COMPILER_GCC || JMPXX_COMPILER_CLANG
 #define JMPXX_LIKELY(x) (__builtin_expect(static_cast<bool>(x), 1))
@@ -299,7 +299,7 @@
 #define JMPXX_HARDENING_EXTENSIVE_ENABLED \
   (JMPXX_HARDENING_MODE >= JMPXX_HARDENING_EXTENSIVE)
 
-// diagnostic-layer switch. JMPXX_DIAGNOSTICS_ENABLED=1 turns on the debug-only
+// Diagnostic-layer switch. JMPXX_DIAGNOSTICS_ENABLED=1 turns on the debug-only
 // diagnostic layer: the rich policy captures a failure's origin and the causal
 // chain it accumulates as it propagates, held out of band. When 0 the entire
 // layer compiles to nothing, the rich policy's representation and codegen equal
@@ -316,7 +316,7 @@
 #endif
 #endif
 
-// optional stack-trace capture for the diagnostic layer. JMPXX_STACKTRACE=1 makes
+// Optional stack-trace capture for the diagnostic layer. JMPXX_STACKTRACE=1 makes
 // a captured failure also record the return addresses of its creation site, on
 // platforms where a fenced capturer is available. Off by default and meaningful
 // only when JMPXX_DIAGNOSTICS_ENABLED is on. Symbolizing the addresses is an
@@ -368,7 +368,7 @@ struct error {
 //
 // Level 2, the landing scope, marks the single typed boundary a region's
 // propagation lands at. It introduces a call boundary, which costs one frame
-// unless the call is inlined and allocates nothing; its reference entry states
+// unless the call is inlined, and allocates nothing; its reference entry states
 // that cost.
 #ifndef JMPXX_CORE_PROPAGATION_HPP
 #define JMPXX_CORE_PROPAGATION_HPP
@@ -2271,7 +2271,7 @@ template <class E, class Opt, class MakeError>
 }
 
 // Adapt a boolean-plus-value result into a result. `present` says whether a value
-// is available; when true the value comes from take(), when false the failure
+// is available; when true the value comes from take(), and when false the failure
 // comes from on_absent(). This fits a library whose success flag and value are
 // separate, such as a parse result that is tested for success and then asked for
 // its parsed object, where there is no single optional to dereference.
@@ -2380,8 +2380,8 @@ inline category_table& categories() noexcept {
 
 }  // namespace detail
 
-// The jmpxx error category for a domain, default the generic domain 0. Its identity
-// is stable for the program's lifetime.
+// The jmpxx error category for a domain, defaulting to the generic domain 0. Its
+// identity is stable for the program's lifetime.
 [[nodiscard]] inline const std::error_category& error_category(
     int domain = 0) noexcept {
   return detail::categories().get(domain);
@@ -2399,7 +2399,7 @@ inline category_table& categories() noexcept {
 }
 
 // std::error_code -> jmpxx::error. What each direction preserves, and what a foreign
-// category loses, is in docs/reference/interop.md. is_jmpxx is exposed beside it
+// category loses, are in docs/reference/interop.md. is_jmpxx is exposed beside it
 // because a caller that must not narrow a foreign code needs to ask before it
 // converts rather than after.
 [[nodiscard]] inline bool is_jmpxx(const std::error_code& ec) noexcept {
@@ -2430,10 +2430,10 @@ inline category_table& categories() noexcept {
 // direction promises.
 //
 // The whole bridge exists only where exceptions are enabled, which is the opposite
-// of the primary no-exceptions use case, so it is fenced behind JMPXX_HAS_EXCEPTIONS and is absent
-// from a -fno-exceptions or freestanding build. Including it in such a build defines
-// JMPXX_INTEROP_HAS_EXCEPTION_BRIDGE to 0 and declares nothing, so a translation unit
-// can include it unconditionally and query the macro.
+// of the primary no-exceptions use case, so it is fenced behind JMPXX_HAS_EXCEPTIONS
+// and is absent from a -fno-exceptions or freestanding build. Including it in such a
+// build defines JMPXX_INTEROP_HAS_EXCEPTION_BRIDGE to 0 and declares nothing, so a
+// translation unit can include it unconditionally and query the macro.
 #ifndef JMPXX_INTEROP_EXCEPTION_HPP
 #define JMPXX_INTEROP_EXCEPTION_HPP
 
@@ -2469,8 +2469,8 @@ class error_exception : public std::exception {
 };
 
 // result -> value, throwing on failure. Used where exception-free code must hand a
-// failure to a component that expects a throw: on success the value is returned, on
-// failure error_exception<E> carrying the error is thrown.
+// failure to a component that expects a throw: on success the value is returned,
+// and on failure error_exception<E> carrying the error is thrown.
 template <class T, class E>
 T value_or_throw(result<T, E> r) {
   if (r) {
@@ -2525,6 +2525,7 @@ auto catch_into_result(F&& f, MakeError&& make_error) noexcept
 // This bridge lives in its own header and is never pulled in by jmpxx/core.hpp, so
 // the minimal core's include graph stays free of <expected>; that separation is
 // what keeps the freestanding promise.
+//
 // std::expected became freestanding only in C++26, but <expected> itself compiles
 // in a freestanding configuration on the supported toolchains, and the conversions
 // below touch only its freestanding-clean surface: they construct from a value or a
