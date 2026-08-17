@@ -1,10 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 # jmpxx documentation
 
-jmpxx is a header-only C++20 library for non-local, RAII-correct,
-exception-free error propagation. The [project README](../README.md) is the
-introduction and first example. This directory holds the guides, reference pages,
-comparison data, and tooling reference.
+The [project README](../README.md) introduces jmpxx and shows the first example.
+This directory is everything after that: the guides that orient you, a reference
+page per capability, the measured comparison, and the tooling reference.
 
 ## Start here
 
@@ -28,8 +27,8 @@ Boost.LEAF, and tl::expected, and states where jmpxx wins and where it does not.
   scope, and the cost of each.
 - [policies.md](reference/policies.md): the minimal, rich, and type-erased error
   representations over one transport.
-- [diagnostics.md](reference/diagnostics.md): the debug-only origin and causal chain,
-  free in release.
+- [diagnostics.md](reference/diagnostics.md): what a failure records about where it
+  began, and what it costs.
 - [hardening.md](reference/hardening.md): graded fail-fast checks for contract
   violations, with runtime probes and codegen absence gates.
 - [interop.md](reference/interop.md): the `std::expected`, `std::error_code`, exception,
@@ -38,6 +37,12 @@ Boost.LEAF, and tl::expected, and states where jmpxx wins and where it does not.
   metadata, with a C++20 fallback.
 - [platform.md](reference/platform.md): the fenced platform and ABI abstraction.
 - [unwind.md](reference/unwind.md): the experimental, opt-in non-local unwind arm.
+
+## Design notes
+
+- [unwind-arm.md](design/unwind-arm.md): how the escape works per ABI, what holds it
+  together, every measurement behind it with the toolchain and date it was taken on, and
+  what is still unproven.
 
 ## Distribution
 
