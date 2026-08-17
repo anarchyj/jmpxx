@@ -195,22 +195,8 @@
    "note": "every automatic object on the escape path is destroyed once, so the count equals the frame count"
   },
   {
-   "id": "compile_cost.fixture_instantiations",
-   "source": "verify-args:compile-cost --cxx clang++-19 --fixture {source_root}/benchmarks/fixtures/ship_jmpxx.cpp --baseline {source_root}/benchmarks/fixtures/ship_handwritten.cpp --runs 1",
-   "key": "fixture.instantiations",
-   "documented": 170,
-   "tolerance_percent": 5,
-   "forms": [
-    "about {digits} templates under Clang 19"
-   ],
-   "documents": [
-    "docs/comparison.md"
-   ],
-   "note": "the translation cost the comparison quotes, measured with the Clang the comparison names. The count is the standard library's as much as this library's and differs on another Clang, so it is held against the one it was measured with and skipped where that compiler is absent."
-  },
-  {
    "id": "compile_cost.baseline_instantiations",
-   "source": "verify-args:compile-cost --cxx clang++-19 --fixture {source_root}/benchmarks/fixtures/ship_jmpxx.cpp --baseline {source_root}/benchmarks/fixtures/ship_handwritten.cpp --runs 1",
+   "source": "verify-args:compile-cost --cxx clang++ --fixture {source_root}/benchmarks/fixtures/ship_jmpxx.cpp --baseline {source_root}/benchmarks/fixtures/ship_handwritten.cpp --runs 1",
    "key": "baseline.instantiations",
    "forms": [
     "{words} for the hand-written baseline"
@@ -218,7 +204,7 @@
    "documents": [
     "docs/comparison.md"
    ],
-   "note": "the translation cost the comparison quotes, measured with the Clang the comparison names. The count is the standard library's as much as this library's and differs on another Clang, so it is held against the one it was measured with and skipped where that compiler is absent."
+   "note": "what the same work costs to translate without the transport. Nine on every compiler measured, unlike the count for the transport itself, which is why this one is stated and that one is not"
   },
   {
    "id": "compile_cost.budget",

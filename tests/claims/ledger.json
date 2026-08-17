@@ -1029,26 +1029,6 @@
   },
   {
    "file": "docs/comparison.md",
-   "digest": "59693ff12401",
-   "text": "The deterministic compile-cost gate bounds the count against a fixed budget rather than against this figure, so what cannot grow unnoticed is the cost itself, and the cost over a plain integer return is the cost of the type-level guarantees.",
-   "disposition": "gate",
-   "backing": "compile_cost compile_cost.teeth",
-   "reason": "the figure is re-derived by the gate that backs it on every run, so its currency is the last build rather than a date"
-  },
-  {
-   "file": "docs/comparison.md",
-   "digest": "5eef69c9ea45",
-   "text": "A translation unit that uses the result transport for one chain instantiates about 170 templates under Clang 19, against nine for the hand-written baseline, and takes roughly twice as long to translate.",
-   "disposition": "measurement",
-   "backing": "compile_cost",
-   "provenance": {
-    "tool": "jmpxx-verify compile-cost",
-    "target": "x86-64 Linux, clang++-19 19.1.1, the shipped fixture against the hand-written baseline",
-    "obtained": "2026-08-17"
-   }
-  },
-  {
-   "file": "docs/comparison.md",
    "digest": "6bc6ff1e399b",
    "text": "The incumbent comparison is measured data, labeled with the configuration it was taken on.",
    "disposition": "measurement",
@@ -1058,6 +1038,25 @@
     "target": "x86-64 Linux (WSL2), g++-13 13.3.0, -O2",
     "obtained": "2026-08-17"
    }
+  },
+  {
+   "file": "docs/comparison.md",
+   "digest": "727d452ce25c",
+   "text": "How many more is the standard library's answer as much as this library's, and it varies by more than a factor of three across the compilers this project tests, so what is stated here is the bound rather than a figure: the deterministic compile-cost gate holds the count under a fixed budget on every build.",
+   "disposition": "measurement",
+   "backing": "compile_cost",
+   "provenance": {
+    "tool": "jmpxx-verify compile-cost on the shipped fixture against the hand-written baseline",
+    "target": "55 instantiations with Apple Clang on macos-latest, 112 with clang++-19 on ubuntu-24.04, 170 with clang++-19 19.1.1 on x86-64 Linux; the hand-written baseline is nine on all three",
+    "obtained": "2026-08-17"
+   }
+  },
+  {
+   "file": "docs/comparison.md",
+   "digest": "79e850fa15dc",
+   "text": "The cost over a plain integer return is the cost of the type-level guarantees.",
+   "disposition": "rationale",
+   "backing": "the transport's guarantees are what the instantiations buy; see docs/reference/verification.md for what the gate bounds"
   },
   {
    "file": "docs/comparison.md",
