@@ -60,10 +60,12 @@ but its value is sixteen bytes to jmpxx's eight, it carries no causal context, a
 compile-time protection against a dropped failure.
 
 **jmpxx costs more to compile than a bare status return.** A translation unit that uses the
-`result` transport for one chain instantiates about 170 templates, against nine for the hand-written
-baseline, and takes roughly twice as long to translate. The deterministic compile-cost gate bounds
-that instantiation count so it cannot grow unnoticed, and the cost over a plain integer return is
-the cost of the type-level guarantees.
+`result` transport for one chain instantiates about 170 templates under Clang 19, against nine for
+the hand-written baseline, and takes roughly twice as long to translate. The count is the standard
+library's as much as this library's, so it moves with the toolchain: an older Clang and Apple's
+Clang each reach the same code in fewer instantiations. The deterministic compile-cost gate bounds
+the count against a fixed budget rather than against this figure, so what cannot grow unnoticed is
+the cost itself, and the cost over a plain integer return is the cost of the type-level guarantees.
 
 ## The measured numbers
 

@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -109,28 +110,42 @@ def dotted(obj, key):
 
 
 def measure(entry, build_dir, source_root, caches):
-    """The current value of one entry, or None with the reason it is unavailable."""
+    """The current value of one entry, or None with the reason it is unavailable.
+
+    The third result separates a value this host cannot produce from a value it
+    produced wrongly. Only the second is a defect. A gate that treats the first as a
+    defect fails wherever a tool is missing, which is every host but the one it was
+    written on, and that is what it did: callgrind runs in one job and the check
+    demanded its report in all of them.
+    """
     source = (entry["source"].replace("{source_root}", source_root)
                              .replace("{build_dir}", build_dir))
     kind, _, rest = source.partition(":")
+    # A probe told which compiler to use can only answer where that compiler is
+    # installed, and the compiler is named because the value differs between them.
+    args = rest.split()
+    if "--cxx" in args:
+        cxx = args[args.index("--cxx") + 1]
+        if not shutil.which(cxx):
+            return None, f"{cxx} is not installed here", True
     if kind == "verify":
         metrics = probe(build_dir, rest, caches["probe"])
         if entry["key"] not in metrics:
-            return None, f"jmpxx-verify {rest} reports no {entry['key']}"
-        return metrics[entry["key"]], None
+            return None, f"jmpxx-verify {rest} reports no {entry['key']}", False
+        return metrics[entry["key"]], None, False
     if kind == "verify-args":
         # A probe that needs its subject named, such as compile-cost with the fixture
         # and baseline the comparison quotes.
         metrics = probe_with_args(build_dir, rest.split(), caches["probe"])
         if entry["key"] not in metrics:
-            return None, f"jmpxx-verify {rest} reports no {entry['key']}"
-        return metrics[entry["key"]], None
+            return None, f"jmpxx-verify {rest} reports no {entry['key']}", False
+        return metrics[entry["key"]], None, False
     if kind == "report":
         try:
             return dotted(report_file(build_dir, rest, caches["report"]),
-                          entry["key"]), None
+                          entry["key"]), None, False
         except (OSError, KeyError, IndexError, ValueError) as exc:
-            return None, f"{rest} is not readable here: {exc}"
+            return None, f"{rest} is not readable here: {exc}", True
     if kind == "tool":
         # A gate's own committed configuration, so a documented floor is held against
         # the floor that gate enforces rather than against a second copy of it.
@@ -139,22 +154,22 @@ def measure(entry, build_dir, source_root, caches):
             try:
                 caches["tool"][rest] = json.loads(out)
             except json.JSONDecodeError:
-                return None, f"{rest} printed no configuration"
+                return None, f"{rest} printed no configuration", True
         try:
-            return dotted(caches["tool"][rest], entry["key"]), None
+            return dotted(caches["tool"][rest], entry["key"]), None, False
         except (KeyError, IndexError, ValueError) as exc:
-            return None, f"{rest} has no {entry['key']}: {exc}"
+            return None, f"{rest} has no {entry['key']}: {exc}", False
     if kind == "file":
         path, _, pattern = rest.partition("::")
         try:
             with open(os.path.join(source_root, path), encoding="utf-8") as f:
                 m = re.search(pattern, f.read(), re.M)
         except OSError as exc:
-            return None, str(exc)
+            return None, str(exc), True
         if not m:
-            return None, f"{path} does not state {pattern}"
-        return m.group(1), None
-    return None, f"unknown source kind {kind}"
+            return None, f"{path} does not state {pattern}", False
+        return m.group(1), None, False
+    return None, f"unknown source kind {kind}", False
 
 
 def document_text(source_root, doc, overlay):
@@ -165,14 +180,19 @@ def document_text(source_root, doc, overlay):
 
 def check(values, build_dir, source_root, overlay, only_source):
     caches = {"probe": {}, "report": {}, "tool": {}}
-    covered, findings, skipped = [], [], []
+    covered, findings, skipped, unreachable = [], [], [], []
     for entry in values["values"]:
         if only_source and not entry["source"].startswith(only_source):
             continue
-        value, why = measure(entry, build_dir, source_root, caches)
+        value, why, absent = measure(entry, build_dir, source_root, caches)
         if value is None:
             skipped.append({"id": entry["id"], "why": why})
-            findings.append({"id": entry["id"], "why": "unavailable: " + why})
+            # A tool this host does not carry leaves the population rather than failing
+            # it. The floor below is what keeps the population from quietly emptying.
+            if absent:
+                unreachable.append(entry["id"])
+            else:
+                findings.append({"id": entry["id"], "why": "unavailable: " + why})
             continue
         if entry.get("scale"):
             value = value * entry["scale"]
@@ -201,7 +221,7 @@ def check(values, build_dir, source_root, overlay, only_source):
                            + " | ".join(forms)})
         covered.append({"id": entry["id"], "measured": value,
                         "documents": entry["documents"], "stated": stated})
-    return covered, findings, skipped
+    return covered, findings, skipped, unreachable
 
 
 def main():
@@ -219,7 +239,7 @@ def main():
         values = json.load(f)
     overlay = dict(o.split("=", 1) for o in args.overlay)
 
-    covered, findings, skipped = check(values, args.build_dir, args.source_root,
+    covered, findings, skipped, unreachable = check(values, args.build_dir, args.source_root,
                                        overlay, args.only_source)
     floor_key = "covered_floor_" + (args.only_source or "verify")
     floor = values.get(floor_key, 0)
@@ -228,12 +248,17 @@ def main():
                          f"{len(covered)} values covered, below the recorded floor "
                          f"{floor}; the gate cannot be narrowed to pass"})
 
+    # A value whose tool is absent here is not a case this gate declined to ask; it
+    # is a case that does not exist on this host. It leaves the known population so the
+    # two counts agree, and is listed so nobody reads the smaller number as coverage.
     applicable = [e for e in values["values"]
-                  if not args.only_source or e["source"].startswith(args.only_source)]
+                  if (not args.only_source or e["source"].startswith(args.only_source))
+                  and e["id"] not in unreachable]
     rep = {"tool": "jmpxx-doc-claim", "schema": 1,
            "cases": {"asked": len(covered), "known": len(applicable)},
            "floor": floor,
            "covered": covered, "skipped": skipped, "findings": findings,
+           "unreachable": unreachable,
            "ok": not findings}
     if args.report:
         with open(args.report, "w", encoding="utf-8") as f:
@@ -244,6 +269,9 @@ def main():
     print(f"    cases.known  {len(applicable)}")
     for c in covered:
         print(f"    {c['id']:34s} {str(c['measured'])[:40]}")
+    for entry_id in unreachable:
+        why = next(s["why"] for s in skipped if s["id"] == entry_id)
+        print(f"    (not on this host) {entry_id}: {why}")
     for f in findings:
         print(f"  FAIL {f['id']}: {f['why']}")
     print("  VERDICT: " + ("PASS" if rep["ok"] else "FAIL"))
