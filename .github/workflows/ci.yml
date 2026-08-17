@@ -48,12 +48,21 @@ jobs:
             *) echo "no package mapping for ${{ matrix.cxx }}"; exit 1 ;;
           esac
           sudo apt-get install -y ninja-build "$COMPILER"
+      - name: provision the foreign header trees
+        # The foreign-consumer tier builds the public surface behind real upstream
+        # headers. The Windows and X11 ecosystems come with a cross-compiler and a
+        # system package; the firmware trees are fetched and pinned. Wine is not
+        # installed here, so the Windows fixture is built and not run, which the tier
+        # reports rather than counting as unchecked.
+        run: |
+          sudo apt-get install -y libx11-dev g++-mingw-w64-x86-64
+          bash tests/scripts/provision_foreign_headers.sh "$RUNNER_TEMP/foreign-headers"
       - name: configure
         # The benchmark and lint surfaces are exercised in the dedicated perf-and-lint job, which
         # provisions valgrind, Boost, and the LLVM development libraries; this matrix stays focused
         # on the library across compilers and standards. The size and compile-cost gates live in the
         # test tiers and run here regardless.
-        run: cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF
+        run: cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DJMPXX_BUILD_BENCHMARKS=OFF -DJMPXX_BUILD_LINT=OFF -DJMPXX_FOREIGN_HEADERS_ROOT="$RUNNER_TEMP/foreign-headers"
       - name: build
         run: cmake --build build
       - name: test

@@ -254,6 +254,28 @@ target_link_libraries(jmpxx_firmware_macros PRIVATE jmpxx::jmpxx)
 target_compile_options(jmpxx_firmware_macros PRIVATE ${JMPXX_TEST_WARNINGS})
 add_test(NAME interop.firmware_macros COMMAND jmpxx_firmware_macros)
 
+# The same property against real upstream header trees rather than a transcribed list
+# of their macros. The trees are fetched by tests/scripts/provision_foreign_headers.sh
+# into JMPXX_FOREIGN_HEADERS_ROOT; the Windows and X11 ecosystems come with a
+# cross-compiler and a system package and are covered without it. The inverted case
+# gives a public header a name each ecosystem defines, which must fail to compile
+# behind that ecosystem's headers.
+set(JMPXX_FOREIGN_HEADERS_ROOT "" CACHE PATH
+  "Root of the fetched upstream header trees the foreign-consumer tier builds behind")
+if(UNIX)
+  add_test(NAME interop.foreign_headers COMMAND bash
+    ${CMAKE_SOURCE_DIR}/tests/scripts/foreign_headers_check.sh
+    ${CMAKE_CXX_COMPILER} ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/foreign_headers
+    "${JMPXX_FOREIGN_HEADERS_ROOT}" clean)
+  add_test(NAME interop.foreign_headers.teeth COMMAND bash
+    ${CMAKE_SOURCE_DIR}/tests/scripts/foreign_headers_check.sh
+    ${CMAKE_CXX_COMPILER} ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/foreign_headers_injected
+    "${JMPXX_FOREIGN_HEADERS_ROOT}" inject)
+  set_tests_properties(interop.foreign_headers.teeth PROPERTIES WILL_FAIL TRUE)
+endif()
+
 # The std::expected bridge preserves the freestanding property: it builds and runs
 # -ffreestanding and the minimal core pulls no <expected> or <system_error>. Pinned
 # to g++-13 on Linux, the one libstdc++ that honors -ffreestanding.
